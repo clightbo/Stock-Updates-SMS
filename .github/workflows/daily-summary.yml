@@ -9,9 +9,14 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Print the summary instead of sending the SMS"
+        description: "Print the summary instead of sending it to Telegram"
         type: boolean
         default: false
+
+# `models: read` lets the built-in GITHUB_TOKEN call GitHub Models for free.
+permissions:
+  contents: read
+  models: read
 
 jobs:
   send-summary:
@@ -30,11 +35,10 @@ jobs:
 
       - name: Run pipeline
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
-          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
-          TWILIO_FROM_NUMBER: ${{ secrets.TWILIO_FROM_NUMBER }}
-          SMS_TO_NUMBER: ${{ secrets.SMS_TO_NUMBER }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           WATCHLIST: ${{ vars.WATCHLIST }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
         run: python market_summary.py

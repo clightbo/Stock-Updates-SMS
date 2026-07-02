@@ -1,19 +1,18 @@
 """Daily market summary pipeline.
 
 Flow: fetch watchlist prices (yfinance) -> fetch macro headlines (RSS)
-      -> condense with Claude -> deliver via Twilio SMS.
+      -> condense with Claude -> deliver via Telegram message.
 
 Runs on a schedule via GitHub Actions (see .github/workflows/daily-summary.yml).
 
 Environment variables:
-    ANTHROPIC_API_KEY   Claude API key (required unless DRY_RUN=1)
-    TWILIO_ACCOUNT_SID  Twilio account SID (required unless DRY_RUN=1)
-    TWILIO_AUTH_TOKEN   Twilio auth token (required unless DRY_RUN=1)
-    TWILIO_FROM_NUMBER  Twilio phone number that sends the text, e.g. +15551234567
-    SMS_TO_NUMBER       Your phone number, e.g. +15559876543
-    WATCHLIST           Comma-separated tickers (optional, defaults below)
-    DRY_RUN             Set to "1" to print the summary instead of texting it,
-                        and to fall back to a plain-text summary if no Claude key.
+    GITHUB_TOKEN         Token for GitHub Models (provided automatically in
+                         Actions when the workflow has `models: read` permission)
+    TELEGRAM_BOT_TOKEN   Bot token from @BotFather (required unless DRY_RUN=1)
+    TELEGRAM_CHAT_ID     Your chat id with the bot (required unless DRY_RUN=1)
+    WATCHLIST            Comma-separated tickers (optional, defaults below)
+    LLM_MODEL            GitHub Models model id (optional, default below)
+    DRY_RUN              Set to "1" to print the summary instead of sending it.
 """
 
 import os
@@ -44,9 +43,11 @@ MACRO_KEYWORDS = [
 ]
 
 MAX_HEADLINES = 25
-SMS_CHAR_LIMIT = 640  # ~4 SMS segments; Twilio concatenates automatically
+MESSAGE_CHAR_LIMIT = 1200  # Telegram allows 4096; keep it skimmable
 
-CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5")
+# Free inference via GitHub Models (https://models.github.ai). Any model id
+# from the catalog works, e.g. "openai/gpt-4o" or "meta/llama-3.3-70b-instruct".
+LLM_MODEL = os.environ.get("LLM_MODEL") or "openai/gpt-4o-mini"
 
 
 def get_watchlist() -> list[str]:
@@ -120,39 +121,49 @@ def format_raw_briefing(prices: list[dict], headlines: list[str]) -> str:
     return "\n".join(lines)
 
 
-def summarize_with_claude(raw_briefing: str) -> str:
-    import anthropic
+def summarize_with_llm(raw_briefing: str) -> str:
+    """Condense the raw briefing using GitHub Models (free tier)."""
+    import requests
 
-    client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from env
-    response = client.messages.create(
-        model=CLAUDE_MODEL,
-        max_tokens=400,
-        system=(
-            "You write a daily market summary delivered as a single SMS text "
-            "message. Hard limit: 600 characters. Style: terse, information-dense, "
-            "no fluff, no greetings, no markdown. Start with the watchlist moves "
-            "(ticker, % change), then 2-3 sentences on the most market-moving "
-            "macro news. Use your judgment to skip headlines that don't matter. "
-            "Plain text only."
-        ),
-        messages=[{"role": "user", "content": raw_briefing}],
+    system_prompt = (
+        "You write a daily market summary delivered as a Telegram message. "
+        "Hard limit: 1000 characters. Style: terse, information-dense, "
+        "no fluff, no greetings, no markdown. Start with the watchlist moves "
+        "(ticker, % change, one per line), then 3-4 sentences on the most "
+        "market-moving macro news. Use your judgment to skip headlines that "
+        "don't matter. Plain text only."
     )
-    return response.content[0].text.strip()
-
-
-def send_sms(body: str) -> None:
-    from twilio.rest import Client
-
-    client = Client(
-        os.environ["TWILIO_ACCOUNT_SID"],
-        os.environ["TWILIO_AUTH_TOKEN"],
+    response = requests.post(
+        "https://models.github.ai/inference/chat/completions",
+        headers={
+            "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
+            "Content-Type": "application/json",
+        },
+        json={
+            "model": LLM_MODEL,
+            "max_tokens": 400,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": raw_briefing},
+            ],
+        },
+        timeout=60,
     )
-    message = client.messages.create(
-        body=body,
-        from_=os.environ["TWILIO_FROM_NUMBER"],
-        to=os.environ["SMS_TO_NUMBER"],
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"].strip()
+
+
+def send_telegram(body: str) -> None:
+    import requests
+
+    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    response = requests.post(
+        f"https://api.telegram.org/bot{token}/sendMessage",
+        json={"chat_id": os.environ["TELEGRAM_CHAT_ID"], "text": body},
+        timeout=30,
     )
-    print(f"SMS sent, sid={message.sid}")
+    response.raise_for_status()
+    print("Telegram message sent.")
 
 
 def main() -> None:
@@ -170,26 +181,30 @@ def main() -> None:
 
     raw_briefing = format_raw_briefing(prices, headlines)
 
-    if os.environ.get("ANTHROPIC_API_KEY"):
-        print(f"Summarizing with {CLAUDE_MODEL}...")
-        summary = summarize_with_claude(raw_briefing)
-    elif dry_run:
-        print("No ANTHROPIC_API_KEY set; using raw briefing (dry run only).")
-        summary = raw_briefing
+    if os.environ.get("GITHUB_TOKEN"):
+        print(f"Summarizing with {LLM_MODEL} via GitHub Models...")
+        try:
+            summary = summarize_with_llm(raw_briefing)
+        except Exception as exc:
+            # Better to deliver the raw data than nothing at all.
+            print(f"warning: LLM summarization failed ({exc}); "
+                  "sending raw briefing instead.", file=sys.stderr)
+            summary = raw_briefing
     else:
-        sys.exit("error: ANTHROPIC_API_KEY is not set")
+        print("No GITHUB_TOKEN set; using raw briefing.")
+        summary = raw_briefing
 
-    if len(summary) > SMS_CHAR_LIMIT:
-        summary = summary[: SMS_CHAR_LIMIT - 3] + "..."
+    if len(summary) > MESSAGE_CHAR_LIMIT:
+        summary = summary[: MESSAGE_CHAR_LIMIT - 3] + "..."
 
     print("\n----- summary -----")
     print(summary)
     print(f"----- {len(summary)} chars -----\n")
 
     if dry_run:
-        print("DRY_RUN=1, skipping SMS.")
+        print("DRY_RUN=1, skipping Telegram send.")
     else:
-        send_sms(summary)
+        send_telegram(summary)
 
 
 if __name__ == "__main__":
