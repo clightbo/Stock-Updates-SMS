@@ -153,15 +153,52 @@ def summarize_with_llm(raw_briefing: str) -> str:
     return response.json()["choices"][0]["message"]["content"].strip()
 
 
+def get_telegram_credentials() -> tuple[str, str]:
+    """Read and sanity-check the Telegram secrets, with clear errors."""
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip().removeprefix("bot")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "").strip()
+
+    # Auto-correct swapped secrets: bot tokens contain ":", chat ids are digits.
+    if ":" not in token and ":" in chat_id:
+        print("note: TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID look swapped; "
+              "using them in the right order.")
+        token, chat_id = chat_id, token
+
+    if ":" not in token:
+        sys.exit(
+            "error: the TELEGRAM_BOT_TOKEN secret doesn't look like a bot token. "
+            "It should be the full string from BotFather, like "
+            "'123456789:AAFxYz...', including the colon."
+        )
+    if not chat_id.lstrip("-").isdigit():
+        sys.exit(
+            "error: the TELEGRAM_CHAT_ID secret doesn't look like a chat id. "
+            "It should be just a number, like 8864014810."
+        )
+    return token, chat_id
+
+
 def send_telegram(body: str) -> None:
     import requests
 
-    token = os.environ["TELEGRAM_BOT_TOKEN"]
+    token, chat_id = get_telegram_credentials()
     response = requests.post(
         f"https://api.telegram.org/bot{token}/sendMessage",
-        json={"chat_id": os.environ["TELEGRAM_CHAT_ID"], "text": body},
+        json={"chat_id": chat_id, "text": body},
         timeout=30,
     )
+    if response.status_code == 404:
+        sys.exit(
+            "error: Telegram rejected the bot token (404). The "
+            "TELEGRAM_BOT_TOKEN secret value is not the token BotFather gave "
+            "you. Edit the secret and paste the full token, e.g. "
+            "'123456789:AAFxYz...'."
+        )
+    if response.status_code == 400:
+        sys.exit(
+            f"error: Telegram rejected the request ({response.text}). "
+            "Double-check the TELEGRAM_CHAT_ID secret."
+        )
     response.raise_for_status()
     print("Telegram message sent.")
 
