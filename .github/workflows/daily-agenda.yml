@@ -1,0 +1,49 @@
+name: Daily AI agenda
+
+on:
+  schedule:
+    # 11:00 UTC = 7:00 AM ET during daylight saving time (Mar-Nov).
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the agenda in the log instead of sending it"
+        type: boolean
+        default: false
+      sample_data:
+        description: "Use built-in fake data (no Microsoft account needed)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  send-agenda:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run pipeline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TIMEZONE: ${{ vars.TIMEZONE }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          SAMPLE_DATA: ${{ inputs.sample_data && '1' || '' }}
+        run: python daily_agenda.py

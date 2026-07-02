@@ -1,5 +1,14 @@
 # Stock-Updates-SMS
 
+Personal automation pipelines that run free in the cloud on GitHub Actions and message your phone via Telegram:
+
+1. **Daily market summary** — watchlist prices + AI-condensed macro news, weekday mornings ([setup](#market-summary))
+2. **Daily AI agenda** — an AI chief of staff that reads your Outlook inbox and calendar and messages you a morning plan ([setup](#daily-ai-agenda))
+
+<a name="market-summary"></a>
+
+## Daily market summary
+
 A fully automated daily market summary, pushed to your phone via Telegram every weekday morning. **100% free** — it runs on GitHub Actions and uses GitHub Models for the AI summary, so there are no API bills, no credit card, and no laptop required.
 
 ## How it works
@@ -68,3 +77,45 @@ To test the AI step locally, set `GITHUB_TOKEN` to a fine-grained personal acces
 - **Model** — set an `LLM_MODEL` repository variable (same Variables tab as the watchlist). Any id from the [GitHub Models catalog](https://github.com/marketplace/models) works, e.g. `openai/gpt-4o` or `meta/llama-3.3-70b-instruct`. Default is `openai/gpt-4o-mini`.
 - **News sources / keyword filter** — edit `RSS_FEEDS` and `MACRO_KEYWORDS` at the top of `market_summary.py`.
 - **Summary style / length** — edit the system prompt in `summarize_with_llm()`.
+
+<a name="daily-ai-agenda"></a>
+
+## Daily AI agenda
+
+Every morning at 7:00 AM ET, an AI reads your Outlook calendar (next 48 hours) and inbox (last 24 hours), figures out what actually needs your attention, and sends you a Telegram message with three sections: **TODAY** (your schedule), **NEEDS ACTION** (emails with deadlines or that need replies), and **SHOULD SCHEDULE** (things from email that belong on your calendar, with suggested free slots). Newsletters and promo noise are filtered out by the AI.
+
+```
+GitHub Actions (cron, daily 7:00 AM ET)
+        │
+        ▼
+daily_agenda.py
+  1. Pulls your calendar + recent inbox via Microsoft Graph
+  2. AI (GitHub Models, free) turns it into a prioritized morning plan
+  3. Telegram bot pushes it to your phone
+```
+
+### Setup (builds on the market summary setup)
+
+You already have the Telegram bot and secrets from the market summary. Two additions:
+
+**1. Add a `GH_PAT` secret.** This lets the pipeline keep your Microsoft sign-in fresh automatically (Microsoft rotates tokens; this stores the new one each run).
+
+1. Go to [github.com/settings/tokens/new](https://github.com/settings/tokens/new) (Settings → Developer settings → Personal access tokens → Tokens (classic) → Generate new token).
+2. Note: anything, e.g. `agenda pipeline`. Expiration: **No expiration**. Scopes: check the top-level **repo** box. Click **Generate token**.
+3. Copy the token (starts with `ghp_`) and add it as a repository secret named `GH_PAT`.
+
+**2. Sign in to Microsoft (once).**
+
+1. Go to the **Actions** tab → **Microsoft sign-in (run once)** → **Run workflow**.
+2. Open the running job's log (click the run, then **device-login**). Within a few seconds it prints a link (`https://login.microsoft.com/device`) and a short code.
+3. On your phone, open the link, enter the code, and sign in with the Microsoft account whose Outlook you want summarized. Approve the permissions (read your mail and calendar).
+4. The log will print "Success! Signed in as ..." and store the token as a secret automatically.
+
+Then test it: **Actions → Daily AI agenda → Run workflow**. It runs daily at 7:00 AM ET after that.
+
+### Notes
+
+- **Privacy:** email subjects and previews are sent to GitHub Models (GitHub's AI service) to build the summary. They are never printed in workflow logs.
+- **No Azure setup needed:** sign-in uses Microsoft's public "Graph Command Line Tools" app id. If your account blocks it (some school/work accounts do), you'd need your own (free) app registration — open an issue or ask your AI assistant.
+- **Timezone:** default is US Eastern. Set a `TIMEZONE` repository variable to change it (Windows format, e.g. `Pacific Standard Time`).
+- **Sample data:** the manual run has a "sample data" checkbox that uses built-in fake email/calendar data — useful for testing the pipeline before signing in to Microsoft.
