@@ -4,6 +4,7 @@ Personal automation pipelines that run free in the cloud on GitHub Actions and m
 
 1. **Daily market summary** — watchlist prices + AI-condensed macro news, weekday mornings ([setup](#market-summary))
 2. **Daily AI agenda** — an AI chief of staff that reads your Outlook inbox and calendar and messages you a morning plan ([setup](#daily-ai-agenda))
+3. **Notion planner sync** — an AI scheduling bot that turns your email and calendar into an organized planner board in Notion ([setup](#notion-planner))
 
 <a name="market-summary"></a>
 
@@ -119,3 +120,45 @@ Then test it: **Actions → Daily AI agenda → Run workflow**. It runs daily at
 - **No Azure setup needed:** sign-in uses Microsoft's public "Graph Command Line Tools" app id. If your account blocks it (some school/work accounts do), you'd need your own (free) app registration — open an issue or ask your AI assistant.
 - **Timezone:** default is US Eastern. Set a `TIMEZONE` repository variable to change it (Windows format, e.g. `Pacific Standard Time`).
 - **Sample data:** the manual run has a "sample data" checkbox that uses built-in fake email/calendar data — useful for testing the pipeline before signing in to Microsoft.
+
+<a name="notion-planner"></a>
+
+## Notion planner sync
+
+Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. Newsletters and promo noise are skipped. Every row has a Status (Inbox → Planned → Done) so you can run your week from one board. Nothing is ever added twice — each row carries a hidden dedupe key.
+
+```
+GitHub Actions (cron, 7:30 AM + 5:00 PM ET)
+        │
+        ▼
+planner_sync.py
+  1. Pulls calendar (next 7 days) + inbox (last 24h) via Microsoft Graph
+  2. AI (GitHub Models, free) extracts tasks, deadlines & meetings from email
+  3. Upserts everything into your "AI Planner" database in Notion
+  4. (optional) Telegram ping listing what was added
+```
+
+### Setup (builds on the daily agenda setup)
+
+You already have the Microsoft sign-in, `GH_PAT`, and Telegram secrets from the agenda pipeline. Two additions, both free (~5 minutes):
+
+**1. Create a Notion integration.**
+
+1. Go to [notion.so/my-integrations](https://www.notion.so/my-integrations) → **New integration**. Name it anything (e.g. "AI Planner"), pick your workspace, and under Capabilities make sure **Read**, **Update**, and **Insert content** are enabled.
+2. Copy the **Internal Integration Secret** (starts with `ntn_` or `secret_`) and add it as a repository secret named `NOTION_TOKEN`.
+
+**2. Pick (or create) a Notion page to hold the planner.**
+
+1. In Notion, create a page (e.g. "Planner Hub") or pick an existing one.
+2. On that page: **••• menu → Connections → Add connection →** your integration. (Without this the bot can't see the page.)
+3. Copy the page's URL (**••• menu → Copy link**) and add it as a repository secret named `NOTION_PARENT_PAGE_ID` (the full URL is fine — the id is extracted automatically).
+
+On the first run the bot creates an **"AI Planner"** database under that page with Name, Type, Status, Due, Source, From, and Notes columns. Later runs find it by title and only add what's new — you can move it, add views (a calendar view on the **Due** property works great), or add your own columns freely.
+
+Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry run* to see what would be added without writing anything, or run it for real and watch the rows appear in Notion. After that it runs automatically twice a day.
+
+### Notes
+
+- **You stay in control:** the bot only adds rows. It never edits or deletes anything, so your statuses, notes, and re-ordering are safe.
+- **Privacy:** like the agenda, email subjects/previews go to GitHub Models for extraction and are never printed in workflow logs.
+- **Schedule:** edit the two `cron` lines in `.github/workflows/planner-sync.yml` (times are UTC).

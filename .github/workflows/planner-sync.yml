@@ -1,0 +1,52 @@
+name: Notion planner sync
+
+on:
+  schedule:
+    # Twice a day: 11:30 UTC (7:30 AM ET) and 21:00 UTC (5:00 PM ET).
+    - cron: "30 11 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print what would sync instead of writing to Notion"
+        type: boolean
+        default: false
+      sample_data:
+        description: "Use built-in fake data (no Microsoft account needed)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  sync-planner:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run planner sync
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TIMEZONE: ${{ vars.TIMEZONE }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          SAMPLE_DATA: ${{ inputs.sample_data && '1' || '' }}
+        run: python planner_sync.py
