@@ -344,6 +344,14 @@ def build_items(events: list[dict], emails: list[dict]) -> list[dict]:
 def main() -> None:
     dry_run = os.environ.get("DRY_RUN") == "1"
 
+    if not os.environ.get("NOTION_TOKEN") and not dry_run:
+        sys.exit(
+            "error: the NOTION_TOKEN secret is missing, so there is nowhere "
+            "to sync to yet. Follow the 'Notion planner sync' setup in the "
+            "README (create a Notion integration, then add NOTION_TOKEN and "
+            "NOTION_PARENT_PAGE_ID as repository secrets) and re-run."
+        )
+
     if os.environ.get("SAMPLE_DATA") == "1":
         print("Using built-in sample data (SAMPLE_DATA=1).")
         events, emails = SAMPLE_EVENTS, SAMPLE_EMAILS
