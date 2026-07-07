@@ -28,22 +28,35 @@ DEFAULT_WATCHLIST = ["SPY", "QQQ", "DIA", "AAPL", "NVDA", "MSFT"]
 RSS_FEEDS = {
     "CNBC Markets": "https://www.cnbc.com/id/20910258/device/rss/rss.html",
     "CNBC Economy": "https://www.cnbc.com/id/20910255/device/rss/rss.html",
+    "CNBC World": "https://www.cnbc.com/id/100727362/device/rss/rss.html",
+    "CNBC Deals": "https://www.cnbc.com/id/10000664/device/rss/rss.html",
     "MarketWatch Top": "https://feeds.content.dowjones.io/public/rss/mw_topstories",
     "Yahoo Finance": "https://finance.yahoo.com/news/rssindex",
 }
 
-# Headlines matching any of these are treated as macro-relevant. Claude does the
-# final judgment call on what's notable; this filter just keeps token usage down.
+# Headlines matching any of these are kept. The LLM makes the final judgment
+# call on what's notable; this filter just keeps token usage down.
 MACRO_KEYWORDS = [
+    # macro / rates
     "fed", "fomc", "powell", "rate", "inflation", "cpi", "ppi", "pce",
     "jobs", "payroll", "unemployment", "gdp", "treasury", "yield", "bond",
     "tariff", "trade", "oil", "opec", "recession", "stimulus", "earnings",
-    "market", "stocks", "s&p", "nasdaq", "dow", "rally", "selloff", "crash",
-    "dollar", "china", "ecb", "housing", "retail sales", "consumer",
+    "market", "stocks", "s&p", "spy", "nasdaq", "dow", "rally", "selloff",
+    "crash", "dollar", "ecb", "housing", "retail sales", "consumer",
+    # M&A / deals
+    "merger", "acquisition", "acquire", "buyout", "takeover", "deal",
+    "ipo", "stake", "spinoff", "spin-off", "bid for",
+    # world events
+    "china", "war", "ukraine", "russia", "israel", "iran", "sanctions",
+    "election", "geopolit", "nato", "summit", "north korea", "taiwan",
+    "strike", "protest", "coup", "missile", "ceasefire",
 ]
 
-MAX_HEADLINES = 25
-MESSAGE_CHAR_LIMIT = 1200  # Telegram allows 4096; keep it skimmable
+# US economic calendar (times include ET offset), free JSON feed.
+ECON_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
+
+MAX_HEADLINES = 35
+MESSAGE_CHAR_LIMIT = 2600  # Telegram allows 4096; keep it skimmable
 
 # Free inference via GitHub Models (https://models.github.ai). Any model id
 # from the catalog works, e.g. "openai/gpt-4o" or "meta/llama-3.3-70b-instruct".
@@ -108,13 +121,53 @@ def fetch_headlines() -> list[str]:
     return headlines[:MAX_HEADLINES]
 
 
-def format_raw_briefing(prices: list[dict], headlines: list[str]) -> str:
+def fetch_econ_calendar() -> list[str]:
+    """Today's US economic events (data releases, Fed speakers) with ET times."""
+    import requests
+
+    try:
+        events = requests.get(
+            ECON_CALENDAR_URL, timeout=30,
+            headers={"User-Agent": "Mozilla/5.0"},
+        ).json()
+    except Exception as exc:
+        print(f"warning: econ calendar fetch failed: {exc}", file=sys.stderr)
+        return []
+
+    # The feed's timestamps carry the ET offset, e.g. 2026-07-07T08:30:00-04:00.
+    today_et = datetime.now(timezone(timedelta(hours=-4))).strftime("%Y-%m-%d")
+    lines = []
+    for ev in events:
+        if ev.get("country") != "USD":
+            continue
+        date = ev.get("date", "")
+        if not date.startswith(today_et):
+            continue
+        title = ev.get("title", "")
+        impact = ev.get("impact", "")
+        # Keep high/medium impact releases, plus anything Fed-related.
+        fed_related = "fomc" in title.lower() or "fed" in title.lower()
+        if impact not in ("High", "Medium") and not fed_related:
+            continue
+        time_et = date[11:16]
+        details = ""
+        if ev.get("forecast"):
+            details = f" (forecast {ev['forecast']}, prev {ev.get('previous', '?')})"
+        lines.append(f"{time_et} ET [{impact}] {title}{details}")
+    return lines
+
+
+def format_raw_briefing(prices: list[dict], headlines: list[str],
+                        econ_events: list[str]) -> str:
     """The raw data blob that gets handed to Claude."""
     date_str = datetime.now(timezone.utc).strftime("%A, %B %d, %Y")
     lines = [f"Market data for {date_str} (all changes vs prior close):", ""]
     for row in prices:
         sign = "+" if row["pct_change"] >= 0 else ""
         lines.append(f"{row['ticker']}: ${row['close']} ({sign}{row['pct_change']}%)")
+    lines.append("")
+    lines.append("Today's US economic calendar (data releases and Fed events):")
+    lines.extend(econ_events if econ_events else ["(nothing scheduled)"])
     lines.append("")
     lines.append("Headlines from the last 24 hours:")
     lines.extend(headlines if headlines else ["(no macro headlines found)"])
@@ -126,12 +179,21 @@ def summarize_with_llm(raw_briefing: str) -> str:
     import requests
 
     system_prompt = (
-        "You write a daily market summary delivered as a Telegram message. "
-        "Hard limit: 1000 characters. Style: terse, information-dense, "
-        "no fluff, no greetings, no markdown. Start with the watchlist moves "
-        "(ticker, % change, one per line), then 3-4 sentences on the most "
-        "market-moving macro news. Use your judgment to skip headlines that "
-        "don't matter. Plain text only."
+        "You write a pre-market daily briefing delivered as a Telegram "
+        "message. Hard limit: 2400 characters. Style: terse, "
+        "information-dense, no fluff, no greetings, no markdown formatting. "
+        "Plain text with these ALL-CAPS section headers, in this order, "
+        "omitting any section with nothing notable:\n"
+        "WATCHLIST - each ticker with price and % change, one per line.\n"
+        "TRADING WATCH - today's economic calendar items that can move SPY "
+        "and the broad market (Fed/FOMC events, CPI, jobs data, etc.) with "
+        "their ET times, plus a one-line take on what to watch for. If the "
+        "Fed is speaking or a high-impact release is due, flag it clearly.\n"
+        "M&A - mergers, acquisitions, buyouts, and big deals from the "
+        "headlines, with the companies and dollar amounts if known.\n"
+        "WORLD - geopolitical and world events that matter for markets.\n"
+        "MACRO - 2-3 sentences on the other most market-moving news.\n"
+        "Use your judgment to skip headlines that don't matter."
     )
     response = requests.post(
         "https://models.github.ai/inference/chat/completions",
@@ -141,7 +203,7 @@ def summarize_with_llm(raw_briefing: str) -> str:
         },
         json={
             "model": LLM_MODEL,
-            "max_tokens": 400,
+            "max_tokens": 900,
             "messages": [
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": raw_briefing},
@@ -214,9 +276,12 @@ def main() -> None:
 
     print("Fetching headlines...")
     headlines = fetch_headlines()
-    print(f"Got {len(prices)} tickers, {len(headlines)} headlines.")
+    print("Fetching economic calendar...")
+    econ_events = fetch_econ_calendar()
+    print(f"Got {len(prices)} tickers, {len(headlines)} headlines, "
+          f"{len(econ_events)} econ events today.")
 
-    raw_briefing = format_raw_briefing(prices, headlines)
+    raw_briefing = format_raw_briefing(prices, headlines, econ_events)
 
     if os.environ.get("GITHUB_TOKEN"):
         print(f"Summarizing with {LLM_MODEL} via GitHub Models...")
