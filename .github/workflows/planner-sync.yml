@@ -50,4 +50,6 @@ jobs:
           LLM_MODEL: ${{ vars.LLM_MODEL }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
           SAMPLE_DATA: ${{ inputs.sample_data && '1' || '' }}
+          SKIP_MICROSOFT: ${{ vars.SKIP_MICROSOFT }}
+          SKIP_OUTLOOK_CALENDAR: ${{ vars.SKIP_OUTLOOK_CALENDAR }}
         run: python planner_sync.py
