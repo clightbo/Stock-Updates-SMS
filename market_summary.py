@@ -61,12 +61,76 @@ MACRO_KEYWORDS = [
 ECON_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 
 MAX_HEADLINES = 35
-MESSAGE_CHAR_LIMIT = 2600  # Telegram allows 4096; keep it skimmable
+MESSAGE_CHAR_LIMIT = 3000  # Telegram allows 4096; keep it skimmable
+
+# Interview pitches rotate weekly (same idea Mon–Sun) so you can actually
+# remember and reuse them in coffee chats / interviews.
+INTERVIEW_IDEAS = [
+    (
+        "LONG NVDA (AI infrastructure): Hyperscalers are still in a capex "
+        "arms race; NVDA's data-center GPUs have pricing power and a wide "
+        "CUDA moat. Catalyst: next earnings guide + Blackwell shipment ramp. "
+        "Risk: export controls, customer concentration (MSFT/GOOG/META), "
+        "multiple compression if growth slows."
+    ),
+    (
+        "LONG MSFT (quality + AI monetization): Enterprise stickiness + "
+        "Copilot upsell turns Office/Azure into an AI tax on business "
+        "software. Catalyst: Azure growth re-acceleration, Copilot seat "
+        "attach. Risk: slow enterprise adoption, antitrust, capex weighing "
+        "on FCF near term."
+    ),
+    (
+        "LONG XLE / energy (geopolitical supply risk): Middle East "
+        "disruptions and OPEC discipline keep a floor under crude; majors "
+        "trade below historical multiples with buybacks/dividends. Catalyst: "
+        "Strait of Hormuz headlines, inventory draws. Risk: global recession "
+        "crushing demand, surprise supply increase."
+    ),
+    (
+        "PAIRS: LONG QQQ / SHORT DIA (tech vs old economy): Leadership "
+        "stays in megacap tech while industrials lag on rates and slowing "
+        "PMI. Catalyst: earnings dispersion, AI narrative. Risk: factor "
+        "reversal if Fed cuts spark broad rally in cyclicals."
+    ),
+    (
+        "LONG AAPL (cash machine + services): Hardware cycle is mature but "
+        "high-margin Services and buybacks support EPS; Vision/AI features "
+        "are optional upside. Catalyst: Services growth, capital return. "
+        "Risk: China demand, App Store regulation, multiple already full."
+    ),
+    (
+        "MACRO HEDGE: LONG TLT / duration if Fed pivot (or short if "
+        "sticky inflation): 10Y near 4.5%+ prices in higher-for-longer; "
+        "either inflation cools and bonds rally, or growth surprises and "
+        "equities win. Catalyst: CPI/PCE/Fed speak. Risk: fiscal deficits "
+        "keeping term premium elevated."
+    ),
+    (
+        "LONG GLD (geopolitical + debasement hedge): Wars, sanctions, and "
+        "central-bank buying support gold when real yields stall or dollar "
+        "weakens. Catalyst: escalation headlines, Fed pause. Risk: strong "
+        "dollar + rising real yields."
+    ),
+    (
+        "CREDIT CAUTION (tighten HY exposure): Late-cycle: tight spreads "
+        "don't compensate for recession risk if unemployment ticks up. "
+        "Thesis: favor IG over HY, or put spreads on HYG. Catalyst: weak "
+        "jobs/claims, rising defaults. Risk: soft landing + hunt for yield "
+        "keeps spreads compressed."
+    ),
+]
 
 # Free inference via GitHub Models (https://models.github.ai). Any model id
 # from the catalog works, e.g. "openai/gpt-4o" or "meta/llama-3.3-70b-instruct".
 LLM_MODEL = os.environ.get("LLM_MODEL") or "openai/gpt-4o-mini"
 MARKET_DB_TITLE = "Market Daily"
+
+
+def weekly_interview_idea() -> str:
+    """Same pitch all week — easier to prep for interviews."""
+    week = datetime.now(timezone.utc).isocalendar().week
+    return INTERVIEW_IDEAS[week % len(INTERVIEW_IDEAS)]
 
 
 def get_watchlist() -> list[str]:
@@ -199,7 +263,19 @@ def summarize_with_llm(raw_briefing: str) -> str:
         "headlines, with the companies and dollar amounts if known.\n"
         "WORLD - geopolitical and world events that matter for markets.\n"
         "MACRO - 2-3 sentences on the other most market-moving news.\n"
+        "INTERVIEW IDEA - always include this section last. Use the weekly "
+        "pitch provided in the user message as your base (keep the same "
+        "long/short direction and core thesis). You may add ONE short "
+        "sentence tying it to today's headlines or price action if natural; "
+        "do not invent a completely different idea. Format: thesis, "
+        "catalyst, risk — how you'd pitch it in a finance interview.\n"
         "Use your judgment to skip headlines that don't matter."
+    )
+    seed_idea = weekly_interview_idea()
+    user_content = (
+        f"{raw_briefing}\n\n"
+        f"Weekly interview pitch to reuse (base your INTERVIEW IDEA section on this):\n"
+        f"{seed_idea}"
     )
     response = requests.post(
         "https://models.github.ai/inference/chat/completions",
@@ -209,10 +285,10 @@ def summarize_with_llm(raw_briefing: str) -> str:
         },
         json={
             "model": LLM_MODEL,
-            "max_tokens": 900,
+            "max_tokens": 1050,
             "messages": [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": raw_briefing},
+                {"role": "user", "content": user_content},
             ],
         },
         timeout=60,
@@ -346,7 +422,7 @@ def main() -> None:
             # Better to deliver the raw data than nothing at all.
             print(f"warning: LLM summarization failed ({exc}); "
                   "sending raw briefing instead.", file=sys.stderr)
-            summary = raw_briefing
+            summary = raw_briefing + "\n\nINTERVIEW IDEA\n" + weekly_interview_idea()
     else:
         print("No GITHUB_TOKEN set; using raw briefing.")
         summary = raw_briefing
@@ -361,7 +437,11 @@ def main() -> None:
     day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     if os.environ.get("NOTION_TOKEN"):
-        sync_to_notion(prices, summary, day, dry_run)
+        try:
+            sync_to_notion(prices, summary, day, dry_run)
+        except SystemExit:
+            print("warning: Notion sync failed; sending Telegram anyway.",
+                  file=sys.stderr)
     elif not dry_run:
         print("note: NOTION_TOKEN not set; skipping Notion sync.")
 

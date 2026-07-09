@@ -92,6 +92,7 @@ To test the AI step locally, set `GITHUB_TOKEN` to a fine-grained personal acces
 - **Model** — set an `LLM_MODEL` repository variable (same Variables tab as the watchlist). Any id from the [GitHub Models catalog](https://github.com/marketplace/models) works, e.g. `openai/gpt-4o` or `meta/llama-3.3-70b-instruct`. Default is `openai/gpt-4o-mini`.
 - **News sources / keyword filter** — edit `RSS_FEEDS` and `MACRO_KEYWORDS` at the top of `market_summary.py`.
 - **Summary style / length** — edit the system prompt in `summarize_with_llm()`.
+- **Interview pitch** — rotates weekly from a curated list in `INTERVIEW_IDEAS` at the top of `market_summary.py`. Edit or add ideas there; the AI ties it to today's headlines when it can.
 
 <a name="daily-ai-agenda"></a>
 
