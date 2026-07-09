@@ -26,7 +26,7 @@ import requests
 DEFAULT_CLIENT_ID = "14d82eec-204b-4c2f-b7e8-296a70dab67e"
 
 CLIENT_ID = os.environ.get("MS_CLIENT_ID") or DEFAULT_CLIENT_ID
-SCOPES = "offline_access User.Read Mail.Read Calendars.Read"
+SCOPES = "offline_access User.Read Mail.Read Calendars.ReadWrite"
 BASE = "https://login.microsoftonline.com/common/oauth2/v2.0"
 
 
@@ -102,7 +102,8 @@ def main() -> None:
         print()
         print(f"Success! Signed in as: {me.get('displayName') or me.get('userPrincipalName', 'your account')}")
         print("The MS_REFRESH_TOKEN secret has been stored. You can now run "
-              "the 'Daily AI agenda' workflow.")
+              "the 'Daily AI agenda' and 'Notion planner sync' workflows.")
+        print("Re-run this workflow any time calendar write permissions change.")
         return
 
     sys.exit("error: sign-in timed out. Re-run this workflow and enter the "

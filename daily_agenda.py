@@ -35,7 +35,7 @@ import requests
 
 GRAPH = "https://graph.microsoft.com/v1.0"
 TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-SCOPES = "offline_access User.Read Mail.Read Calendars.Read"
+SCOPES = "offline_access User.Read Mail.Read Calendars.ReadWrite"
 # Must match the client used at sign-in time (see get_ms_token.py).
 MS_CLIENT_ID = os.environ.get("MS_CLIENT_ID") or "14d82eec-204b-4c2f-b7e8-296a70dab67e"
 
@@ -105,6 +105,21 @@ def graph_get(token: str, url: str, params: dict) -> dict:
         params=params,
         headers={
             "Authorization": f"Bearer {token}",
+            "Prefer": f'outlook.timezone="{TIMEZONE}"',
+        },
+        timeout=30,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def graph_post(token: str, url: str, payload: dict) -> dict:
+    response = requests.post(
+        url,
+        json=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
             "Prefer": f'outlook.timezone="{TIMEZONE}"',
         },
         timeout=30,

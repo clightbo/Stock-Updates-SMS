@@ -140,7 +140,7 @@ Then test it: **Actions → Daily AI agenda → Run workflow**. It runs daily at
 
 ## Notion planner sync
 
-Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. Newsletters and promo noise are skipped. Every row has a Status (Inbox → Planned → Done) so you can run your week from one board. Nothing is ever added twice — each row carries a hidden dedupe key.
+Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. **Important financial announcements** (US macro releases + watchlist earnings) are also added to **Outlook calendar** and Notion as **Markets** events. Newsletters and promo noise are skipped. Every row has a Status (Inbox → Planned → Done) so you can run your week from one board. Nothing is ever added twice — each row carries a hidden dedupe key.
 
 ```
 GitHub Actions (cron, 7:30 AM + 5:00 PM ET)
@@ -148,9 +148,11 @@ GitHub Actions (cron, 7:30 AM + 5:00 PM ET)
         ▼
 planner_sync.py
   1. Pulls calendar (next 7 days) + inbox (last 24h) via Microsoft Graph
-  2. AI (GitHub Models, free) extracts tasks, deadlines & meetings from email
-  3. Upserts everything into your "AI Planner" database in Notion
-  4. (optional) Telegram ping listing what was added
+  2. Pulls US macro releases (high/medium + Fed) and watchlist earnings (next 7 days)
+  3. Adds market events to Outlook calendar (30-min blocks, 30-min reminder)
+  4. AI (GitHub Models, free) extracts tasks, deadlines & meetings from email
+  5. Upserts everything into your "AI Planner" database in Notion
+  6. (optional) Telegram ping listing what was added
 ```
 
 ### Setup (builds on the daily agenda setup)
@@ -171,6 +173,8 @@ You already have the Microsoft sign-in, `GH_PAT`, and Telegram secrets from the 
 On the first run the bot creates an **"AI Planner"** database under that page with Name, Type, Status, Due, Source, From, and Notes columns. Later runs find it by title and only add what's new — you can move it, add views (a calendar view on the **Due** property works great), or add your own columns freely.
 
 Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry run* to see what would be added without writing anything, or run it for real and watch the rows appear in Notion. After that it runs automatically twice a day.
+
+**Calendar write permission:** market events are created in Outlook with subjects like `[Markets] CPI`. If you signed in to Microsoft before this feature existed, re-run **Microsoft sign-in (run once)** so the token includes calendar write access.
 
 ### Notes
 
