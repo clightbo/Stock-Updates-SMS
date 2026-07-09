@@ -25,6 +25,8 @@ Environment variables:
     TELEGRAM_CHAT_ID       Optional; your chat id with the bot
     LLM_MODEL              GitHub Models model id (default openai/gpt-4o-mini)
     SAMPLE_DATA            "1" = use built-in fake data (no Microsoft needed)
+    SKIP_MICROSOFT         "1" = skip email/calendar fetch (Notion markets only)
+    SKIP_OUTLOOK_CALENDAR  "1" = do not create Outlook events (Notion only)
     DRY_RUN                "1" = print what would be added; no Notion/Telegram
                            writes (Notion is still read for dedupe if creds
                            are present)
@@ -440,22 +442,39 @@ def main() -> None:
         print("Using built-in sample data (SAMPLE_DATA=1).")
         events, emails = SAMPLE_EVENTS, SAMPLE_EMAILS
         token = None
+    elif os.environ.get("SKIP_MICROSOFT") == "1":
+        print("Skipping Microsoft email/calendar (SKIP_MICROSOFT=1).")
+        events, emails, token = [], [], None
     else:
-        print("Signing in to Microsoft...")
-        token = get_access_token()
-        print("Fetching calendar and inbox...")
-        events = fetch_calendar_week(token)
-        emails = fetch_recent_email(token)
+        try:
+            print("Signing in to Microsoft...")
+            token = get_access_token()
+            print("Fetching calendar and inbox...")
+            events = fetch_calendar_week(token)
+            emails = fetch_recent_email(token)
+        except SystemExit as exc:
+            print(f"warning: Microsoft sync unavailable ({exc}); "
+                  "continuing with financial events in Notion only.",
+                  file=sys.stderr)
+            events, emails, token = [], [], None
+        except requests.HTTPError as exc:
+            print(f"warning: Microsoft API error ({exc}); "
+                  "continuing with financial events in Notion only.",
+                  file=sys.stderr)
+            events, emails, token = [], [], None
     print(f"Got {len(events)} calendar events, {len(emails)} emails.")
 
     print("Fetching financial announcements...")
     financial_events = fetch_financial_announcements(CALENDAR_DAYS_AHEAD)
     print(f"Got {len(financial_events)} macro/earnings events this week.")
 
-    if token and financial_events:
+    if (token and financial_events
+            and os.environ.get("SKIP_OUTLOOK_CALENDAR") != "1"):
         outlook_added = sync_financial_to_outlook(
             token, financial_events, events, dry_run)
         print(f"Outlook: {outlook_added} market event(s) added or pending.")
+    elif financial_events and os.environ.get("SKIP_OUTLOOK_CALENDAR") == "1":
+        print("Skipping Outlook calendar writes (SKIP_OUTLOOK_CALENDAR=1).")
 
     items = build_items(events, emails, financial_events)
     print(f"{len(items)} candidate planner items.")

@@ -174,7 +174,9 @@ On the first run the bot creates an **"AI Planner"** database under that page wi
 
 Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry run* to see what would be added without writing anything, or run it for real and watch the rows appear in Notion. After that it runs automatically twice a day.
 
-**Calendar write permission:** market events are created in Outlook with subjects like `[Markets] CPI`. If you signed in to Microsoft before this feature existed, re-run **Microsoft sign-in (run once)** so the token includes calendar write access.
+**Calendar write permission:** market events can be created in Outlook with subjects like `[Markets] CPI`. If you signed in to Microsoft before this feature existed, re-run **Microsoft sign-in (run once)** so the token includes calendar write access.
+
+**School / `.edu` accounts:** many universities block third-party Microsoft sign-in. Use a **personal** Microsoft account (Outlook.com/Hotmail) during sign-in — especially one that already has your school calendar shared to it. If Outlook writes still fail, add a repository variable `SKIP_OUTLOOK_CALENDAR` = `1`; market events will land in **Notion only** (use a calendar view on the Due column). If Microsoft sign-in is completely blocked, set `SKIP_MICROSOFT` = `1` to sync financial announcements to Notion without email/calendar.
 
 ### Notes
 

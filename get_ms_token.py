@@ -63,8 +63,10 @@ def main() -> None:
     print()
     print(f"  1. On your phone or computer, open: {device['verification_uri']}")
     print(f"  2. Enter this code: {device['user_code']}")
-    print("  3. Sign in with the Microsoft account whose Outlook")
-    print("     email/calendar you want summarized.")
+    print("  3. Sign in with a personal Microsoft account (Outlook.com) whose "
+          "calendar/email you want summarized.")
+    print("     School .edu accounts often block this — use the account that "
+          "has your shared calendar instead.")
     print()
     print(f"  Waiting for you (expires in {device['expires_in'] // 60} minutes)...")
     print("=" * 60, flush=True)
