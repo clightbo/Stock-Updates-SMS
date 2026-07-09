@@ -23,6 +23,7 @@ market_summary.py
   2. Pulls macro headlines from financial RSS feeds (CNBC, MarketWatch, Yahoo)
   3. Sends the raw data to an LLM (GitHub Models, free) to condense into one clean message
   4. Telegram bot pushes it to your phone
+  5. (optional) Saves the day's briefing to a **Market Daily** database in Notion
 ```
 
 The AI step uses [GitHub Models](https://docs.github.com/en/github-models), GitHub's free inference API. The workflow's built-in token gets access automatically via the `models: read` permission — no key to create. If the model call ever fails (e.g. rate limit), the script sends the raw price/headline briefing instead, so you always get your message.
@@ -62,6 +63,19 @@ Default is `SPY, QQQ, DIA, AAPL, NVDA, MSFT`. To change it, go to **Settings →
 Go to the **Actions** tab → **Daily market summary** → **Run workflow**. Check the *dry run* box to print the summary in the logs without sending anything, or leave it unchecked for a real end-to-end test — you should get a Telegram message within a minute.
 
 After that, it runs automatically every weekday at 7:30 AM ET — nothing else to do.
+
+### Notion finance log (optional)
+
+If you already set up Notion for the [planner sync](#notion-planner), the market summary reuses the same `NOTION_TOKEN` and `NOTION_PARENT_PAGE_ID` secrets. Each weekday run adds one row to a **Market Daily** database (created automatically on first run) with the date, AI summary, and watchlist snapshot. Re-runs on the same day are skipped so you never get duplicates.
+
+On your Notion hub page, you'll end up with two databases side by side:
+
+| Database | What it holds |
+|---|---|
+| **AI Planner** | Tasks, deadlines, and calendar events from email |
+| **Market Daily** | Daily watchlist prices + AI market briefing |
+
+Share your hub page with the integration (**••• → Connections → your integration**) and add the two secrets if you haven't already. Then run **Daily market summary** once to see the first row appear.
 
 ## Running locally
 

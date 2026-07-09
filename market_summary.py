@@ -13,6 +13,9 @@ Environment variables:
     WATCHLIST            Comma-separated tickers (optional, defaults below)
     LLM_MODEL            GitHub Models model id (optional, default below)
     DRY_RUN              Set to "1" to print the summary instead of sending it.
+    NOTION_TOKEN         Notion integration secret (optional; enables Notion sync)
+    NOTION_PARENT_PAGE_ID  Notion page URL/id for the finance hub (required on
+                           first run if the Market Daily database doesn't exist)
 """
 
 import os
@@ -22,6 +25,8 @@ from datetime import datetime, timedelta, timezone
 
 import feedparser
 import yfinance as yf
+
+from notion_client import get_or_create_database, key_exists, notion_request, rich_text_chunks
 
 DEFAULT_WATCHLIST = ["SPY", "QQQ", "DIA", "AAPL", "NVDA", "MSFT"]
 
@@ -61,6 +66,7 @@ MESSAGE_CHAR_LIMIT = 2600  # Telegram allows 4096; keep it skimmable
 # Free inference via GitHub Models (https://models.github.ai). Any model id
 # from the catalog works, e.g. "openai/gpt-4o" or "meta/llama-3.3-70b-instruct".
 LLM_MODEL = os.environ.get("LLM_MODEL") or "openai/gpt-4o-mini"
+MARKET_DB_TITLE = "Market Daily"
 
 
 def get_watchlist() -> list[str]:
@@ -240,6 +246,55 @@ def get_telegram_credentials() -> tuple[str, str]:
     return token, chat_id
 
 
+def format_watchlist(prices: list[dict]) -> str:
+    lines = []
+    for row in prices:
+        sign = "+" if row["pct_change"] >= 0 else ""
+        lines.append(f"{row['ticker']}: ${row['close']} ({sign}{row['pct_change']}%)")
+    return "\n".join(lines)
+
+
+def get_market_database() -> str:
+    return get_or_create_database(MARKET_DB_TITLE, {
+        "Name": {"title": {}},
+        "Date": {"date": {}},
+        "Summary": {"rich_text": {}},
+        "Watchlist": {"rich_text": {}},
+        "Key": {"rich_text": {}},
+    })
+
+
+def sync_to_notion(prices: list[dict], summary: str, day: str, dry_run: bool) -> None:
+    """Write today's market briefing to the Market Daily database."""
+    if dry_run and not os.environ.get("NOTION_TOKEN"):
+        print("DRY_RUN=1 and no NOTION_TOKEN; would sync market summary to Notion.")
+        return
+
+    db_id = get_market_database()
+    dedupe_key = f"market-{day}"
+    if key_exists(db_id, dedupe_key):
+        print(f"Market entry for {day} already in Notion; skipping.")
+        return
+
+    title = datetime.strptime(day, "%Y-%m-%d").strftime("%A, %B %d, %Y")
+    properties = {
+        "Name": {"title": [{"text": {"content": title}}]},
+        "Date": {"date": {"start": day}},
+        "Summary": {"rich_text": rich_text_chunks(summary)},
+        "Watchlist": {"rich_text": rich_text_chunks(format_watchlist(prices))},
+        "Key": {"rich_text": [{"text": {"content": dedupe_key}}]},
+    }
+    if dry_run:
+        print(f"DRY_RUN: would add Notion market entry for {day}.")
+        return
+
+    notion_request("POST", "/pages", {
+        "parent": {"database_id": db_id},
+        "properties": properties,
+    })
+    print(f"Synced market summary for {day} to Notion.")
+
+
 def send_telegram(body: str) -> None:
     import requests
 
@@ -302,6 +357,13 @@ def main() -> None:
     print("\n----- summary -----")
     print(summary)
     print(f"----- {len(summary)} chars -----\n")
+
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    if os.environ.get("NOTION_TOKEN"):
+        sync_to_notion(prices, summary, day, dry_run)
+    elif not dry_run:
+        print("note: NOTION_TOKEN not set; skipping Notion sync.")
 
     if dry_run:
         print("DRY_RUN=1, skipping Telegram send.")
