@@ -46,8 +46,10 @@ from daily_agenda import (
     fetch_recent_email,
     get_access_token,
     graph_get,
+    graph_post,
     send_telegram,
 )
+from financial_calendar import fetch_financial_announcements
 
 NOTION_API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
@@ -57,6 +59,7 @@ CALENDAR_DAYS_AHEAD = 7
 LLM_MODEL = os.environ.get("LLM_MODEL") or "openai/gpt-4o-mini"
 
 ITEM_TYPES = ["Task", "Deadline", "Follow-up", "Meeting to schedule", "Event"]
+MARKETS_PREFIX = "[Markets]"
 
 
 # ---------------------------------------------------------------- Microsoft
@@ -86,6 +89,62 @@ def fetch_calendar_week(token: str) -> list[dict]:
             "all_day": item.get("isAllDay", False),
         })
     return events
+
+
+def existing_market_slots(calendar_events: list[dict]) -> set[tuple[str, str]]:
+    """Subjects + start times already on the Outlook calendar."""
+    slots = set()
+    for ev in calendar_events:
+        subject = ev.get("subject", "")
+        if subject.startswith(MARKETS_PREFIX):
+            slots.add((subject, ev["start"][:16]))
+    return slots
+
+
+def sync_financial_to_outlook(token: str, financial_events: list[dict],
+                              calendar_events: list[dict],
+                              dry_run: bool) -> int:
+    """Create Outlook events for macro releases and earnings."""
+    existing = existing_market_slots(calendar_events)
+    created = 0
+    for ev in financial_events:
+        slot = (ev["title"], ev["start"][:16])
+        if slot in existing:
+            continue
+        payload = {
+            "subject": ev["title"],
+            "body": {
+                "contentType": "text",
+                "content": ev.get("notes", ""),
+            },
+            "start": {
+                "dateTime": ev["start"],
+                "timeZone": TIMEZONE,
+            },
+            "end": {
+                "dateTime": ev["end"],
+                "timeZone": TIMEZONE,
+            },
+            "isReminderOn": True,
+            "reminderMinutesBeforeStart": 30,
+        }
+        if dry_run:
+            print(f"DRY_RUN: would add Outlook event {ev['title']} @ {ev['start']}")
+            created += 1
+            continue
+        try:
+            graph_post(token, "https://graph.microsoft.com/v1.0/me/events", payload)
+            print(f"Added Outlook event {ev['title']}")
+            created += 1
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code == 403:
+                print("warning: cannot write to Outlook calendar (need "
+                      "Calendars.ReadWrite). Re-run the 'Microsoft sign-in' "
+                      "workflow to refresh permissions.", file=sys.stderr)
+                return created
+            print(f"warning: failed to add Outlook event {ev['title']}: {exc}",
+                  file=sys.stderr)
+    return created
 
 
 # --------------------------------------------------------------------- LLM
@@ -246,6 +305,7 @@ def create_planner_database(parent_page_id: str) -> str:
             "Source": {"select": {"options": [
                 {"name": "Email", "color": "orange"},
                 {"name": "Calendar", "color": "green"},
+                {"name": "Markets", "color": "blue"},
             ]}},
             "From": {"rich_text": {}},
             "Notes": {"rich_text": {}},
@@ -265,6 +325,18 @@ def get_planner_database() -> str:
                  "NOTION_PARENT_PAGE_ID is not set, so I can't create one. "
                  "Add the secret (see README) and re-run.")
     return create_planner_database(normalize_notion_id(parent))
+
+
+def ensure_markets_source(db_id: str) -> None:
+    """Add the Markets source option to older AI Planner databases."""
+    db = notion_request("GET", f"/databases/{db_id}")
+    options = db["properties"]["Source"]["select"]["options"]
+    if any(opt["name"] == "Markets" for opt in options):
+        return
+    options.append({"name": "Markets", "color": "blue"})
+    notion_request("PATCH", f"/databases/{db_id}", {
+        "properties": {"Source": {"select": {"options": options}}},
+    })
 
 
 def key_exists(db_id: str, key: str) -> bool:
@@ -301,7 +373,8 @@ def dedupe_key(*parts: str) -> str:
     return hashlib.sha1("|".join(parts).encode()).hexdigest()[:16]
 
 
-def build_items(events: list[dict], emails: list[dict]) -> list[dict]:
+def build_items(events: list[dict], emails: list[dict],
+                financial_events: list[dict]) -> list[dict]:
     items = []
     for ev in events:
         due = ev["start"][:10] if ev["all_day"] else ev["start"]
@@ -317,6 +390,17 @@ def build_items(events: list[dict], emails: list[dict]) -> list[dict]:
             "from": "",
             "source": "Calendar",
             "key": dedupe_key("cal", ev["subject"], ev["start"]),
+        })
+
+    for ev in financial_events:
+        items.append({
+            "title": ev["title"],
+            "type": "Event",
+            "due": ev["start"][:10] if ev["all_day"] else ev["start"],
+            "notes": ev.get("notes", ""),
+            "from": ev.get("kind", "markets"),
+            "source": "Markets",
+            "key": dedupe_key("mkt", ev["title"], ev["start"]),
         })
 
     try:
@@ -355,6 +439,7 @@ def main() -> None:
     if os.environ.get("SAMPLE_DATA") == "1":
         print("Using built-in sample data (SAMPLE_DATA=1).")
         events, emails = SAMPLE_EVENTS, SAMPLE_EMAILS
+        token = None
     else:
         print("Signing in to Microsoft...")
         token = get_access_token()
@@ -363,7 +448,16 @@ def main() -> None:
         emails = fetch_recent_email(token)
     print(f"Got {len(events)} calendar events, {len(emails)} emails.")
 
-    items = build_items(events, emails)
+    print("Fetching financial announcements...")
+    financial_events = fetch_financial_announcements(CALENDAR_DAYS_AHEAD)
+    print(f"Got {len(financial_events)} macro/earnings events this week.")
+
+    if token and financial_events:
+        outlook_added = sync_financial_to_outlook(
+            token, financial_events, events, dry_run)
+        print(f"Outlook: {outlook_added} market event(s) added or pending.")
+
+    items = build_items(events, emails, financial_events)
     print(f"{len(items)} candidate planner items.")
 
     if dry_run and not os.environ.get("NOTION_TOKEN"):
@@ -374,6 +468,7 @@ def main() -> None:
         return
 
     db_id = get_planner_database()
+    ensure_markets_source(db_id)
     print(f"Using Notion database {db_id}.")
 
     added = []
