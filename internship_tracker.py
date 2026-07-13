@@ -319,7 +319,6 @@ def main() -> None:
         if early_candidates:
             print("\n----- Early alert preview -----")
             print(format_early_alert_message([p for p, _ in early_candidates[:5]]))
-        from networking_coach import build_networking_messages
         previews = build_networking_messages(
             [p for p, _ in early_candidates[:2]],
             matched[:2],
