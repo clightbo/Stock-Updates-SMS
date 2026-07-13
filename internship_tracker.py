@@ -39,6 +39,7 @@ from internship_sources import (
     discovery_season_active,
     fetch_all_postings,
     filter_postings,
+    upcoming_early_alerts,
 )
 from notion_client import get_or_create_database, key_exists, rich_text_chunks
 
@@ -48,10 +49,10 @@ MESSAGE_CHAR_LIMIT = 3500
 SAMPLE_RECRUITING_EMAILS = [
     {
         "from": "Morgan Stanley Campus Recruiting",
-        "subject": "2027 Global Markets Summer Analyst — Dallas now open",
+        "subject": "2028 Investment Banking Summer Analyst — Dallas & NYC",
         "preview": (
-            "Applications are open for the 2027 Summer Analyst program in "
-            "Dallas, TX (Global Markets). Apply at "
+            "Applications are open for the 2028 Summer Analyst program in "
+            "Investment Banking. Dallas and New York offices. Apply at "
             "https://ms.wd5.myworkdayjobs.com/en-US/External/job/Dallas"
         ),
         "unread": True,
@@ -62,18 +63,19 @@ SAMPLE_RECRUITING_EMAILS = [
         "subject": "Sophomore Discovery Program — applications open",
         "preview": (
             "We are now accepting applications for the 2026 Sophomore "
-            "Discovery externship. Multiple divisions including Investment "
-            "Banking and Asset Management. Dallas office participating."
+            "Discovery externship. Investment Banking division. "
+            "Dallas and New York participating."
         ),
         "unread": True,
         "important": False,
     },
     {
         "from": "JPMorgan Chase",
-        "subject": "Winning Women in Finance — register for Dallas insight day",
+        "subject": "Hispanic & Latino Markets Fellowship — apply now",
         "preview": (
-            "Register now for the Winning Women in Finance early insight "
-            "program. Dallas session September 12. Sophomores encouraged."
+            "Applications open for the Hispanic and Latino Markets Fellowship. "
+            "Global Markets division. Dallas and New York sessions. "
+            "Sophomores and rising sophomores encouraged."
         ),
         "unread": True,
         "important": False,
@@ -127,6 +129,7 @@ def db_properties() -> dict:
             {"name": "Workday", "color": "blue"},
             {"name": "Program watch", "color": "yellow"},
             {"name": "Email", "color": "orange"},
+            {"name": "Early alert", "color": "purple"},
         ]}},
         "Notes": {"rich_text": {}},
         "Key": {"rich_text": {}},
@@ -137,13 +140,14 @@ def get_tracker_database() -> str:
     return get_or_create_database(DB_TITLE, db_properties())
 
 
-def add_posting(db_id: str, posting: JobPosting) -> None:
+def add_posting(db_id: str, posting: JobPosting, *, key: str | None = None) -> None:
     from notion_client import notion_request
 
+    row_key = key or posting.dedupe_key()
     properties: dict = {
         "Name": {"title": [{"text": {"content": posting.title[:200]}}]},
         "Status": {"select": {"name": "New"}},
-        "Key": {"rich_text": [{"text": {"content": posting.dedupe_key()}}]},
+        "Key": {"rich_text": [{"text": {"content": row_key}}]},
     }
     if posting.firm:
         properties["Firm"] = {"select": {"name": posting.firm[:100]}}
@@ -174,6 +178,33 @@ def add_posting(db_id: str, posting: JobPosting) -> None:
     })
 
 
+def format_early_alert_message(alerts: list[JobPosting]) -> str:
+    today = datetime.now().strftime("%A, %b %d, %Y").replace(" 0", " ")
+    lines = [
+        f"HEADS UP — {today}",
+        "Programs opening in ~1–2 months. Time to network before apps drop.",
+        "",
+    ]
+    for p in alerts[:10]:
+        div = f" ({p.division})" if p.division else ""
+        win = f" [{p.alert_window} out]" if p.alert_window else ""
+        lines.append(f"- {p.firm}{div}{win}")
+        lines.append(f"  {p.title}")
+        if p.notes:
+            # Keep tip line short for Telegram.
+            tip = p.notes.split("Tip: ", 1)[-1] if "Tip: " in p.notes else p.notes
+            lines.append(f"  {tip[:220]}")
+        if p.url:
+            lines.append(f"  {p.url}")
+        lines.append("")
+    if len(alerts) > 10:
+        lines.append(f"...and {len(alerts) - 10} more in Notion")
+    body = "\n".join(lines).strip()
+    if len(body) > MESSAGE_CHAR_LIMIT:
+        body = body[: MESSAGE_CHAR_LIMIT - 3] + "..."
+    return body
+
+
 def format_telegram_message(
     new_postings: list[JobPosting],
     *,
@@ -184,8 +215,8 @@ def format_telegram_message(
     lines = [f"INTERNSHIP WATCH — {today}", season_note, ""]
 
     if not new_postings:
-        lines.append(f"No new Dallas finance roles today ({total_scanned} scanned).")
-        lines.append("Sophomore discovery programs usually open late Aug–Sep.")
+        lines.append(f"No new roles today ({total_scanned} scanned).")
+        lines.append("IB discovery programs usually open late Aug–Sep.")
         return "\n".join(lines)
 
     lines.append(f"NEW ({len(new_postings)})")
@@ -209,12 +240,12 @@ def format_telegram_message(
 def season_banner() -> str:
     if discovery_season_active():
         return (
-            "DISCOVERY SEASON — BB + boutique sophomore programs opening "
-            "(Aug–Nov). Watching Dallas / Texas + national markets & IB rotations."
+            "DISCOVERY SEASON — BB + boutique IB programs opening (Aug–Nov). "
+            "Watching Dallas, NYC, and national diversity fellowships."
         )
     return (
-        "Off-season scan — bulge bracket + elite boutiques on watch. "
-        "Expect sophomore discovery + finance rotations to open late Aug–Sep."
+        "Off-season — watching for early alerts (1–2 months before open) "
+        "and new IB / markets postings in Dallas & NYC."
     )
 
 
@@ -238,9 +269,11 @@ def fetch_recruiting_emails() -> list[dict]:
 def main() -> None:
     dry_run = os.environ.get("DRY_RUN") == "1"
     locations = parse_csv_env(
-        "INTERNSHIP_LOCATIONS", ("dallas", "dfw", "texas", "lubbock"),
+        "INTERNSHIP_LOCATIONS",
+        ("dallas", "dfw", "texas", "lubbock", "irving", "plano", "fort worth",
+         "new york", "nyc", "manhattan"),
     )
-    divisions = parse_csv_env("INTERNSHIP_DIVISIONS", ("AM", "S&T", "IB"))
+    divisions = parse_csv_env("INTERNSHIP_DIVISIONS", ("IB", "S&T", "AM"))
     class_years = parse_csv_env(
         "INTERNSHIP_CLASS_YEARS", ("Freshman", "Sophomore", "Discovery"),
     )
@@ -256,8 +289,11 @@ def main() -> None:
         divisions=divisions,
         class_years=class_years,
     )
-    print(f"{len(matched)} postings match Dallas / {','.join(divisions)} / "
-          f"{','.join(class_years)} filters.")
+    print(f"{len(matched)} postings match filters.")
+
+    # --- Early heads-up alerts (1–2 months before programs open) ---
+    early_candidates = upcoming_early_alerts()
+    print(f"{len(early_candidates)} program(s) in the 1–2 month early-alert window.")
 
     if dry_run and not os.environ.get("NOTION_TOKEN"):
         print("\nDRY_RUN matches:")
@@ -265,11 +301,19 @@ def main() -> None:
             print(f"- [{p.source}] {p.firm} | {p.title} | {p.location}")
             if p.url:
                 print(f"  {p.url}")
+        if early_candidates:
+            print("\nDRY_RUN early alerts:")
+            for posting, key in early_candidates[:10]:
+                print(f"- [{posting.alert_window}] {posting.firm} | {posting.title}")
+                print(f"  {posting.notes[:180]}")
         msg = format_telegram_message(
             matched[:5], total_scanned=len(raw), season_note=season_banner(),
         )
         print("\n----- Telegram preview -----")
         print(msg)
+        if early_candidates:
+            print("\n----- Early alert preview -----")
+            print(format_early_alert_message([p for p, _ in early_candidates[:5]]))
         print("----- end preview -----")
         return
 
@@ -294,36 +338,62 @@ def main() -> None:
             print(f"Added {posting.firm} — {posting.title}")
         new_postings.append(posting)
 
-    print(f"Done: {len(new_postings)} new, "
-          f"{len(matched) - len(new_postings)} already tracked.")
+    new_early: list[JobPosting] = []
+    for posting, alert_key in early_candidates:
+        if key_exists(db_id, alert_key):
+            continue
+        if dry_run:
+            print(f"DRY_RUN: would alert [{posting.alert_window}] "
+                  f"{posting.firm} — {posting.title}")
+        else:
+            add_posting(db_id, posting, key=alert_key)
+            print(f"Early alert logged [{posting.alert_window}] "
+                  f"{posting.firm} — {posting.title}")
+        new_early.append(posting)
+
+    print(f"Done: {len(new_postings)} new roles, {len(new_early)} new early alerts, "
+          f"{len(matched) - len(new_postings)} roles already tracked.")
 
     if not os.environ.get("TELEGRAM_BOT_TOKEN"):
         if dry_run:
             print("No TELEGRAM_BOT_TOKEN; skipping send.")
         return
 
-    # During discovery season, ping even when nothing new (weekly reminder
-    # is handled by workflow schedule; here we only ping on new finds
-    # or first run of the day with matches).
-    should_send = bool(new_postings) or (
+    messages: list[str] = []
+
+    if new_early:
+        messages.append(format_early_alert_message(new_early))
+
+    should_send_roles = bool(new_postings) or (
         discovery_season_active() and matched and dry_run
     )
-    if not should_send and not dry_run:
-        print("No new postings; skipping Telegram.")
+    if should_send_roles and new_postings:
+        messages.append(format_telegram_message(
+            new_postings,
+            total_scanned=len(raw),
+            season_note=season_banner(),
+        ))
+    elif should_send_roles and dry_run and matched:
+        messages.append(format_telegram_message(
+            matched[:5],
+            total_scanned=len(raw),
+            season_note=season_banner(),
+        ))
+
+    if not messages:
+        print("No new postings or early alerts; skipping Telegram.")
         return
 
-    message = format_telegram_message(
-        new_postings if new_postings else matched[:5],
-        total_scanned=len(raw),
-        season_note=season_banner(),
-    )
+    combined = "\n\n".join(messages)
+    if len(combined) > MESSAGE_CHAR_LIMIT:
+        combined = combined[: MESSAGE_CHAR_LIMIT - 3] + "..."
 
     if dry_run:
         print("\n----- Telegram preview -----")
-        print(message)
+        print(combined)
         print("----- end preview -----")
     else:
-        send_telegram(message)
+        send_telegram(combined)
 
 
 if __name__ == "__main__":

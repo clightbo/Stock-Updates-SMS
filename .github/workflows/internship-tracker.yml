@@ -4,6 +4,8 @@ on:
   schedule:
     # Discovery season (Aug–Nov): daily at 8:00 AM ET (12:00 UTC in summer).
     - cron: "0 12 * 8-11 *"
+    # Early-alert window (Jun–Oct): 1st & 15th for 1–2 month heads-up pings.
+    - cron: "0 12 1,15 6-10 *"
     # Off-season: Monday mornings at 8:00 AM ET.
     - cron: "0 12 * 1-7,12 *"
   workflow_dispatch:

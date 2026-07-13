@@ -1,11 +1,13 @@
 """Job sources and filters for the finance internship tracker.
 
-Tuned for a Texas Tech Finance (Class of 2029) profile: Dallas / Texas roles,
-bulge-bracket + elite-boutique IB, global markets (S&T), and asset management,
-with heavy focus on sophomore / freshman discovery and finance-rotation programs.
+Tuned for a Texas Tech Finance (Class of 2029) profile: Dallas / Texas / NYC,
+bulge-bracket + elite-boutique IB (primary), global markets (S&T), and AM.
+Prioritizes Hispanic / Latino / Black diversity fellowships and discovery
+programs — excludes women-only listings.
 
 Polls public Greenhouse and Workday career APIs plus a curated list of
 sophomore / discovery program pages that typically open in early fall.
+Sends early heads-up alerts 1–2 months before expected open dates.
 """
 
 from __future__ import annotations
@@ -13,7 +15,7 @@ from __future__ import annotations
 import hashlib
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 import requests
@@ -26,6 +28,10 @@ DALLAS_KEYWORDS = (
     "dallas", "dfw", "irving", "plano", "richardson", "fort worth",
     "lubbock", "texas", "tx ",
 )
+NYC_KEYWORDS = (
+    "new york", "nyc", "manhattan", "brooklyn", "jersey city",
+)
+LOCATION_KEYWORDS = DALLAS_KEYWORDS + NYC_KEYWORDS
 DIVISION_KEYWORDS = {
     "AM": (
         "asset management", "wealth management", "private wealth", "pwm",
@@ -48,11 +54,22 @@ DIVISION_KEYWORDS = {
 SOPHOMORE_KEYWORDS = (
     "sophomore", "discovery", "underclassman", "underclassmen", "freshman",
     "first year", "first-year", "early insight", "early insights", "insight day",
-    "explore", "possibilities", "launch", "winning women", "diversity symposium",
+    "explore", "possibilities", "launch", "diversity symposium",
     "emerging talent", "early identification", "edge program", "future leaders",
     "campus connect", "introductory", "freshman internship", "soph intern",
     "rising sophomore", "class of 2028", "class of 2029", "seo edge",
     "springboard", "insight series", "career discovery",
+)
+DIVERSITY_KEYWORDS = (
+    "hispanic", "latino", "latina", "latinx", "black", "african american",
+    "diversity", "fellowship", "pathways", "dbachieve", "seo", "launching leaders",
+    "advancing", "underrepresented", "markets fellowship", "possibilities",
+    "insight program", "student leaders",
+)
+EXCLUDE_KEYWORDS = (
+    "winning women", "women in finance", "women in", "women's", "for women",
+    "female only", "womens ", "girls who invest", "girl who", "her campus",
+    "she can", "women on wall",
 )
 INTERNSHIP_KEYWORDS = (
     "intern", "internship", "summer analyst", "off-cycle", "co-op", "coop",
@@ -65,9 +82,18 @@ NOISE_KEYWORDS = (
     "financial services representative", "recruiting systems analyst",
 )
 
-DEFAULT_LOCATIONS = ("dallas", "dfw", "texas", "lubbock")
-DEFAULT_DIVISIONS = ("AM", "S&T", "IB")
+DEFAULT_LOCATIONS = (
+    "dallas", "dfw", "texas", "lubbock", "irving", "plano", "fort worth",
+    "new york", "nyc", "manhattan",
+)
+DEFAULT_DIVISIONS = ("IB", "S&T", "AM")
 DEFAULT_CLASS_YEARS = ("Freshman", "Sophomore", "Discovery")
+
+# How many days before typical open date to send early heads-up alerts.
+EARLY_ALERT_WINDOWS = (
+    (45, 62, "2 months"),   # ~2 months out — start networking
+    (25, 38, "1 month"),    # ~1 month out — prep applications
+)
 
 
 @dataclass
@@ -83,10 +109,28 @@ class JobPosting:
     posted: str = ""
     notes: str = ""
     raw_text: str = field(default="", repr=False)
+    alert_window: str = ""  # set for early heads-up alerts
 
     def dedupe_key(self) -> str:
         base = "|".join((self.firm, self.title, self.location, self.url))
         return hashlib.sha1(base.encode()).hexdigest()[:16]
+
+    def alert_dedupe_key(self, year: int, window: str) -> str:
+        base = f"alert|{year}|{window}|{self.firm}|{self.title}"
+        return hashlib.sha1(base.encode()).hexdigest()[:16]
+
+
+@dataclass
+class UpcomingProgram:
+    firm: str
+    title: str
+    division: str
+    url: str
+    opens_month: int
+    opens_day: int = 15
+    diversity: str = ""
+    networking_tip: str = ""
+    locations: str = "Dallas / NYC / National"
 
 
 def _text_blob(posting: JobPosting) -> str:
@@ -135,14 +179,25 @@ def _title_location_blob(posting: JobPosting) -> str:
     return f"{posting.title} {posting.location}".lower()
 
 
+def is_excluded(posting: JobPosting) -> bool:
+    blob = _text_blob(posting)
+    return any(kw in blob for kw in EXCLUDE_KEYWORDS)
+
+
+def is_diversity_program(posting: JobPosting) -> bool:
+    blob = _text_blob(posting)
+    return any(kw in blob for kw in DIVERSITY_KEYWORDS)
+
+
 def location_matches(posting: JobPosting, locations: tuple[str, ...]) -> bool:
     blob = _title_location_blob(posting)
     if any(loc in blob for loc in locations):
         return True
-    # National discovery programs (source = program watch or email) can omit city.
-    if posting.source in ("Program watch", "Email"):
+    # National discovery / diversity programs can omit city in the title.
+    if posting.source in ("Program watch", "Email", "Early alert"):
         return True
-    # Multi-city campus roles sometimes list "Multiple Locations".
+    if is_diversity_program(posting):
+        return True
     if "multiple location" in blob or "various location" in blob:
         return True
     return False
@@ -176,7 +231,7 @@ def is_relevant(
     discovery_season: bool = False,
 ) -> bool:
     blob = _text_blob(posting)
-    if is_noise(blob):
+    if is_noise(blob) or is_excluded(posting):
         return False
 
     # Job-board postings must look like campus roles in the title.
@@ -238,12 +293,16 @@ _CAMPUS_SEARCHES = (
     "Sophomore Discovery",
     "Early Insight",
     "Early Insights",
-    "Global Markets Intern",
     "Investment Banking Intern",
-    "Asset Management Intern",
+    "Global Markets Intern",
+    "Hispanic Fellowship",
+    "Latino Fellowship",
+    "Black Fellowship",
+    "Markets Fellowship",
     "Finance Rotation",
     "Possibilities",
     "Dallas Intern",
+    "New York Intern",
     "Texas Intern",
     "Campus Analyst",
 )
@@ -267,29 +326,198 @@ WORKDAY_SOURCES = (
     },
 )
 
+# Programs with known typical open months — used for 1–2 month early Telegram alerts.
+# opens_month: month applications usually open (1=Jan … 12=Dec).
+UPCOMING_PROGRAMS: tuple[UpcomingProgram, ...] = (
+    UpcomingProgram(
+        firm="JPMorgan",
+        title="Hispanic & Latino Markets Fellowship",
+        division="S&T",
+        url="https://careers.jpmorgan.com/us/en/students/programs",
+        opens_month=8,
+        diversity="Hispanic / Latino",
+        networking_tip=(
+            "Reach out to JPM Dallas & NYC markets analysts on LinkedIn; "
+            "ask SEO mentors and TTU alumni who did Launching Leaders."
+        ),
+    ),
+    UpcomingProgram(
+        firm="JPMorgan",
+        title="Advancing Black Pathways / Black Markets Fellowship",
+        division="S&T",
+        url="https://careers.jpmorgan.com/us/en/students/programs",
+        opens_month=8,
+        diversity="Black",
+        networking_tip=(
+            "Connect with JPM campus recruiters and former fellows before apps open."
+        ),
+    ),
+    UpcomingProgram(
+        firm="JPMorgan",
+        title="Launching Leaders (Hispanic / Latino)",
+        division="IB",
+        url="https://careers.jpmorgan.com/us/en/students/programs",
+        opens_month=8,
+        diversity="Hispanic / Latino",
+        networking_tip=(
+            "Message TTU alumni at JPM; mention SEO EDGE and your DC banking trip."
+        ),
+    ),
+    UpcomingProgram(
+        firm="JPMorgan",
+        title="Investment Banking Sophomore Discovery",
+        division="IB",
+        url="https://careers.jpmorgan.com/us/en/students/programs",
+        opens_month=8,
+        networking_tip="Ask RBA alumni and Rawls professors for IB coffee chats.",
+    ),
+    UpcomingProgram(
+        firm="Goldman Sachs",
+        title="Possibilities Summit / Sophomore Externship",
+        division="IB",
+        url="https://www.goldmansachs.com/careers/students/programs",
+        opens_month=8,
+        diversity="Diversity",
+        networking_tip=(
+            "You did Possibilities Series — reach out to GS campus contacts "
+            "and ask about sophomore externship timeline."
+        ),
+    ),
+    UpcomingProgram(
+        firm="Morgan Stanley",
+        title="Early Insights (IB / Markets)",
+        division="IB",
+        url="https://www.morganstanley.com/people-opportunities/students-graduates",
+        opens_month=8,
+        diversity="Diversity",
+        networking_tip="Connect with MS Dallas office on LinkedIn before August.",
+    ),
+    UpcomingProgram(
+        firm="Bank of America",
+        title="Student Leaders / Campus Discovery",
+        division="IB",
+        url="https://campus.bankofamerica.com/",
+        opens_month=8,
+        diversity="Diversity",
+        networking_tip="Ask RBA speakers who work at BofA about the program.",
+    ),
+    UpcomingProgram(
+        firm="Citi",
+        title="Early Insight (IB / Markets)",
+        division="IB",
+        url="https://jobs.citi.com/",
+        opens_month=9,
+        diversity="Diversity",
+        networking_tip="Citi recruits heavily in Dallas and NYC — start outreach in July.",
+    ),
+    UpcomingProgram(
+        firm="Deutsche Bank",
+        title="dbAchieve / Sophomore Discovery",
+        division="IB",
+        url="https://careers.db.com/students-graduates",
+        opens_month=8,
+        diversity="Diversity",
+        networking_tip="dbAchieve is a strong diversity pipeline — ask SEO peers who applied.",
+    ),
+    UpcomingProgram(
+        firm="Barclays",
+        title="Discovery / Springboard (Markets)",
+        division="S&T",
+        url="https://search.jobs.barclays/",
+        opens_month=8,
+        diversity="Diversity",
+        networking_tip="Barclays runs NYC and Dallas events — ask about both offices.",
+    ),
+    UpcomingProgram(
+        firm="Evercore",
+        title="Sophomore / Underclassman Discovery",
+        division="IB",
+        url="https://www.evercore.com/careers/students/",
+        opens_month=8,
+        networking_tip="Boutiques open early — start networking with Evercore analysts in June.",
+    ),
+    UpcomingProgram(
+        firm="Moelis",
+        title="Underclassman Campus Program",
+        division="IB",
+        url="https://www.moelis.com/",
+        opens_month=8,
+        networking_tip="Moelis Dallas office — reach out before apps drop.",
+    ),
+    UpcomingProgram(
+        firm="Houlihan Lokey",
+        title="Campus Discovery",
+        division="IB",
+        url="https://hl.com/careers/students/",
+        opens_month=8,
+        networking_tip="HL has strong Dallas presence — ask TTU alumni there.",
+    ),
+    UpcomingProgram(
+        firm="Lazard",
+        title="Diversity Discovery",
+        division="IB",
+        url="https://www.lazard.com/careers/students/",
+        opens_month=8,
+        diversity="Diversity",
+        networking_tip="Lazard NYC-heavy but recruits nationally — start NYC outreach.",
+    ),
+    UpcomingProgram(
+        firm="PJT Partners",
+        title="Campus Discovery",
+        division="IB",
+        url="https://www.pjtpartners.com/careers/students",
+        opens_month=8,
+        networking_tip="PJT is boutique IB — ask RBA contacts for intros.",
+    ),
+    UpcomingProgram(
+        firm="Centerview Partners",
+        title="Campus Discovery",
+        division="IB",
+        url="https://www.centerviewpartners.com/careers/",
+        opens_month=8,
+        networking_tip="Centerview is elite IB — start coffee chats 2 months early.",
+    ),
+    UpcomingProgram(
+        firm="SEO Career",
+        title="SEO EDGE / SEO Alternative (Markets)",
+        division="S&T",
+        url="https://www.seo-usa.org/our-programs/",
+        opens_month=1,
+        opens_day=1,
+        diversity="Diversity",
+        networking_tip="You're already in SEO EDGE — ask your cohort about bank timelines.",
+    ),
+)
+
 # Bulge bracket + elite boutiques + large AM — sophomore / discovery program pages.
-# Most open late August through September (early fall).
 CURATED_PROGRAMS = (
     # --- Bulge bracket ---
     {
         "firm": "Goldman Sachs",
         "title": "Possibilities / Sophomore Externship / Discovery",
-        "division": "S&T",
+        "division": "IB",
         "url": "https://www.goldmansachs.com/careers/students/programs",
         "typical_open": "August-September",
     },
     {
         "firm": "JPMorgan",
-        "title": "Winning Women / Launching Leaders / Advancing Black Pathways",
+        "title": "Hispanic & Latino / Black Markets Fellowship",
+        "division": "S&T",
+        "url": "https://careers.jpmorgan.com/us/en/students/programs",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "JPMorgan",
+        "title": "Launching Leaders / Advancing Black Pathways",
         "division": "IB",
         "url": "https://careers.jpmorgan.com/us/en/students/programs",
         "typical_open": "August-September",
     },
     {
         "firm": "JPMorgan",
-        "title": "Global Markets / Finance Rotation (Campus)",
-        "division": "S&T",
-        "url": "https://careers.jpmorgan.com/us/en/students/programs/global-markets",
+        "title": "Investment Banking Discovery / Campus",
+        "division": "IB",
+        "url": "https://careers.jpmorgan.com/us/en/students/programs",
         "typical_open": "August-September",
     },
     {
@@ -482,9 +710,66 @@ EMAIL_RECRUITING_SUBJECT = (
     "internship", "intern ", "summer analyst", "discovery", "sophomore",
     "freshman", "early insight", "campus", "application", "recruiting", "career",
     "global markets", "investment banking", "asset management", "finance rotation",
-    "dallas", "dfw", "texas", "possibilities", "externship", "class of 2029",
-    "2028 summer", "seo", "rotation",
+    "dallas", "dfw", "texas", "new york", "nyc", "possibilities", "externship",
+    "class of 2029", "2028 summer", "seo", "rotation", "hispanic", "latino",
+    "black", "fellowship", "pathways", "launching leaders",
 )
+
+
+def next_open_date(prog: UpcomingProgram, today: date | None = None) -> date:
+    """Next calendar date this program is expected to open."""
+    today = today or date.today()
+    year = today.year
+    target = date(year, prog.opens_month, prog.opens_day)
+    if target < today:
+        target = date(year + 1, prog.opens_month, prog.opens_day)
+    return target
+
+
+def days_until_open(prog: UpcomingProgram, today: date | None = None) -> int:
+    today = today or date.today()
+    return (next_open_date(prog, today) - today).days
+
+
+def upcoming_early_alerts(
+    today: date | None = None,
+) -> list[tuple[JobPosting, str]]:
+    """Programs due for a 1–2 month heads-up Telegram alert."""
+    today = today or date.today()
+    year = next_open_date(UPCOMING_PROGRAMS[0], today).year if UPCOMING_PROGRAMS else today.year
+    alerts: list[tuple[JobPosting, str]] = []
+
+    for prog in UPCOMING_PROGRAMS:
+        if is_excluded(JobPosting(title=prog.title, firm=prog.firm, url=prog.url)):
+            continue
+        days = days_until_open(prog, today)
+        for lo, hi, label in EARLY_ALERT_WINDOWS:
+            if lo <= days <= hi:
+                open_date = next_open_date(prog, today)
+                notes = (
+                    f"HEADS UP: opens ~{open_date.strftime('%b %d, %Y')} "
+                    f"({days} days). {label} out — start networking now."
+                )
+                if prog.diversity:
+                    notes += f" Diversity: {prog.diversity}."
+                if prog.networking_tip:
+                    notes += f" Tip: {prog.networking_tip}"
+
+                posting = JobPosting(
+                    title=prog.title,
+                    firm=prog.firm,
+                    url=prog.url,
+                    location=prog.locations,
+                    division=prog.division,
+                    class_year="Sophomore",
+                    program_type="Discovery",
+                    source="Early alert",
+                    notes=notes,
+                    alert_window=label,
+                )
+                alerts.append((posting, posting.alert_dedupe_key(open_date.year, label)))
+                break
+    return alerts
 
 
 def discovery_season_active(month: int | None = None) -> bool:
@@ -597,18 +882,30 @@ def fetch_curated_programs(session: requests.Session | None = None) -> list[JobP
             text = re.sub(r"\s+", " ", text)
             status = _page_apply_status(text)
             dallas_hit = any(k in text.lower() for k in DALLAS_KEYWORDS)
+            nyc_hit = any(k in text.lower() for k in NYC_KEYWORDS)
             soph_hit = any(k in text.lower() for k in SOPHOMORE_KEYWORDS)
             intern_hit = any(k in text.lower() for k in INTERNSHIP_KEYWORDS)
+            div_hit = any(k in text.lower() for k in DIVERSITY_KEYWORDS)
+            if is_excluded(JobPosting(
+                title=prog["title"], firm=prog["firm"], url=prog["url"],
+                raw_text=text[:2000],
+            )):
+                continue
+            loc_parts = []
+            if dallas_hit:
+                loc_parts.append("Dallas")
+            if nyc_hit:
+                loc_parts.append("NYC")
+            location = " / ".join(loc_parts) if loc_parts else "National"
             notes = (
                 f"Page status: {status}. Typical open: {prog['typical_open']}."
-                + (" Mentions Dallas." if dallas_hit else "")
             )
-            if status == "Open" or (discovery_season_active() and (soph_hit or intern_hit)):
+            if status == "Open" or (discovery_season_active() and (soph_hit or intern_hit or div_hit)):
                 postings.append(JobPosting(
                     title=prog["title"],
                     firm=prog["firm"],
                     url=prog["url"],
-                    location="Dallas" if dallas_hit else "National",
+                    location=location,
                     division=prog.get("division", ""),
                     class_year="Sophomore" if soph_hit else "",
                     program_type="Discovery",
@@ -634,7 +931,11 @@ def postings_from_recruiting_emails(emails: list[dict]) -> list[JobPosting]:
         subject_hit = any(tok in subject for tok in EMAIL_RECRUITING_SUBJECT)
         if not from_hit and not subject_hit:
             continue
-        if not any(tok in blob for tok in INTERNSHIP_KEYWORDS + SOPHOMORE_KEYWORDS):
+        if not any(tok in blob for tok in INTERNSHIP_KEYWORDS + SOPHOMORE_KEYWORDS + DIVERSITY_KEYWORDS):
+            continue
+        if is_excluded(JobPosting(
+            title=em.get("subject", ""), firm=em.get("from", ""), url="", raw_text=blob,
+        )):
             continue
 
         url_match = re.search(r"https?://[^\s<>\"']+", em.get("preview") or "")
@@ -682,6 +983,8 @@ def filter_postings(
     matched: list[JobPosting] = []
     for posting in postings:
         copy = JobPosting(**{k: getattr(posting, k) for k in posting.__dataclass_fields__})
+        if is_excluded(copy):
+            continue
         if is_relevant(
             copy,
             locations=locations,
