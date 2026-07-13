@@ -100,6 +100,7 @@ def db_properties() -> dict:
         ]}},
         "Location": {"rich_text": {}},
         "Class Year": {"select": {"options": [
+            {"name": "Freshman", "color": "purple"},
             {"name": "Sophomore", "color": "orange"},
             {"name": "Junior", "color": "pink"},
             {"name": "Discovery", "color": "yellow"},
@@ -208,12 +209,12 @@ def format_telegram_message(
 def season_banner() -> str:
     if discovery_season_active():
         return (
-            "DISCOVERY SEASON — watching sophomore / early insight programs "
-            "(Aug–Nov daily scan)."
+            "DISCOVERY SEASON — BB + boutique sophomore programs opening "
+            "(Aug–Nov). Watching Dallas / Texas + national markets & IB rotations."
         )
     return (
-        "Off-season scan — still watching boards; expect a surge of sophomore "
-        "programs in early fall."
+        "Off-season scan — bulge bracket + elite boutiques on watch. "
+        "Expect sophomore discovery + finance rotations to open late Aug–Sep."
     )
 
 
@@ -236,10 +237,12 @@ def fetch_recruiting_emails() -> list[dict]:
 
 def main() -> None:
     dry_run = os.environ.get("DRY_RUN") == "1"
-    locations = parse_csv_env("INTERNSHIP_LOCATIONS", ("dallas", "dfw", "texas"))
+    locations = parse_csv_env(
+        "INTERNSHIP_LOCATIONS", ("dallas", "dfw", "texas", "lubbock"),
+    )
     divisions = parse_csv_env("INTERNSHIP_DIVISIONS", ("AM", "S&T", "IB"))
     class_years = parse_csv_env(
-        "INTERNSHIP_CLASS_YEARS", ("Sophomore", "Discovery"),
+        "INTERNSHIP_CLASS_YEARS", ("Freshman", "Sophomore", "Discovery"),
     )
 
     emails = fetch_recruiting_emails()

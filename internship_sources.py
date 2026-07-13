@@ -1,5 +1,9 @@
 """Job sources and filters for the finance internship tracker.
 
+Tuned for a Texas Tech Finance (Class of 2029) profile: Dallas / Texas roles,
+bulge-bracket + elite-boutique IB, global markets (S&T), and asset management,
+with heavy focus on sophomore / freshman discovery and finance-rotation programs.
+
 Polls public Greenhouse and Workday career APIs plus a curated list of
 sophomore / discovery program pages that typically open in early fall.
 """
@@ -18,21 +22,27 @@ USER_AGENT = "internship-tracker/1.0 (+github-actions)"
 
 # ------------------------------------------------------------------ filters
 
-DALLAS_KEYWORDS = ("dallas", "dfw", "irving", "plano", "richardson", "texas")
+DALLAS_KEYWORDS = (
+    "dallas", "dfw", "irving", "plano", "richardson", "fort worth",
+    "lubbock", "texas", "tx ",
+)
 DIVISION_KEYWORDS = {
     "AM": (
         "asset management", "wealth management", "private wealth", "pwm",
-        "portfolio management", "investment management", "pwm", "pwm ",
-        "private bank", "wealth advisor",
+        "portfolio management", "investment management", "private bank",
+        "wealth advisor", "equity research", "buy-side", "buyside",
+        "portfolio analyst", "fund analyst",
     ),
     "S&T": (
         "sales and trading", "global markets", "securities", "fixed income",
         "equities", "commodities", "macro", "rates", "fx ", "foreign exchange",
-        "markets intern", "trading intern",
+        "markets intern", "trading intern", "capital markets", "structured",
+        "ficc", "equity derivatives",
     ),
     "IB": (
         "investment banking", "ibd", "corporate finance", "m&a", "mergers",
-        "advisory intern", "capital markets intern",
+        "advisory intern", "capital markets intern", "restructuring",
+        "leveraged finance", "coverage", "finance rotation",
     ),
 }
 SOPHOMORE_KEYWORDS = (
@@ -41,11 +51,13 @@ SOPHOMORE_KEYWORDS = (
     "explore", "possibilities", "launch", "winning women", "diversity symposium",
     "emerging talent", "early identification", "edge program", "future leaders",
     "campus connect", "introductory", "freshman internship", "soph intern",
-    "rising sophomore", "class of 2028", "class of 2029",
+    "rising sophomore", "class of 2028", "class of 2029", "seo edge",
+    "springboard", "insight series", "career discovery",
 )
 INTERNSHIP_KEYWORDS = (
     "intern", "internship", "summer analyst", "off-cycle", "co-op", "coop",
-    "campus", "student program", "analyst program",
+    "campus", "student program", "analyst program", "rotation", "finance rotation",
+    "externship", "extern", "academy", "fellowship", "insight program",
 )
 NOISE_KEYWORDS = (
     "ediscovery", "e-discovery", "vice president", "director", "manager",
@@ -53,9 +65,9 @@ NOISE_KEYWORDS = (
     "financial services representative", "recruiting systems analyst",
 )
 
-DEFAULT_LOCATIONS = ("dallas", "dfw", "texas")
+DEFAULT_LOCATIONS = ("dallas", "dfw", "texas", "lubbock")
 DEFAULT_DIVISIONS = ("AM", "S&T", "IB")
-DEFAULT_CLASS_YEARS = ("Sophomore", "Discovery")
+DEFAULT_CLASS_YEARS = ("Freshman", "Sophomore", "Discovery")
 
 
 @dataclass
@@ -95,10 +107,14 @@ def classify_division(text: str) -> str:
 
 def classify_class_year(posting: JobPosting) -> str:
     text = _title_location_blob(posting)
+    if any(kw in text for kw in ("freshman", "first year", "first-year", "class of 2029")):
+        return "Freshman"
     if any(kw in text for kw in SOPHOMORE_KEYWORDS):
         return "Sophomore"
     if "junior" in text or "2027 summer" in text or "2026 summer" in text:
         return "Junior"
+    if "2028 summer" in text:
+        return "Sophomore"
     return ""
 
 
@@ -198,17 +214,38 @@ def is_relevant(
 # ------------------------------------------------------------- API sources
 
 GREENHOUSE_BOARDS = (
+    # Bulge bracket / large AM (where public API exists)
+    {"firm": "AQR", "board": "aqr"},
+    # Elite boutiques / advisory
+    {"firm": "William Blair", "board": "williamblair"},
+    {"firm": "Lincoln International", "board": "lincolninternational"},
+    # Markets / quant / prop
     {"firm": "Jane Street", "board": "janestreet"},
     {"firm": "Point72", "board": "point72"},
     {"firm": "IMC Trading", "board": "imc"},
     {"firm": "Jump Trading", "board": "jumptrading"},
-    {"firm": "StepStone", "board": "stepstone"},
     {"firm": "Schonfeld", "board": "schonfeld"},
     {"firm": "Flow Traders", "board": "flowtraders"},
     {"firm": "Virtu Financial", "board": "virtu"},
-    {"firm": "William Blair", "board": "williamblair"},
-    {"firm": "AQR", "board": "aqr"},
     {"firm": "ExodusPoint", "board": "exoduspoint"},
+    # PE / alt (rotation-adjacent)
+    {"firm": "StepStone", "board": "stepstone"},
+)
+
+_CAMPUS_SEARCHES = (
+    "2028 Summer Analyst",
+    "2027 Summer Analyst",
+    "Sophomore Discovery",
+    "Early Insight",
+    "Early Insights",
+    "Global Markets Intern",
+    "Investment Banking Intern",
+    "Asset Management Intern",
+    "Finance Rotation",
+    "Possibilities",
+    "Dallas Intern",
+    "Texas Intern",
+    "Campus Analyst",
 )
 
 WORKDAY_SOURCES = (
@@ -218,89 +255,117 @@ WORKDAY_SOURCES = (
         "site": "External",
         "wd_host": "ms.wd5.myworkdayjobs.com",
         "job_board_url": "https://ms.wd5.myworkdayjobs.com/en-US/External",
-        "searches": (
-            "2027 Summer Analyst",
-            "2026 Summer Analyst",
-            "Early Insights",
-            "Sophomore",
-            "Discovery Program",
-            "Global Markets Intern",
-            "Investment Banking Intern",
-            "Asset Management Intern",
-            "Dallas Intern",
-        ),
+        "searches": _CAMPUS_SEARCHES,
+    },
+    {
+        "firm": "Citi",
+        "tenant": "citi",
+        "site": "2",
+        "wd_host": "citi.wd5.myworkdayjobs.com",
+        "job_board_url": "https://citi.wd5.myworkdayjobs.com/en-US/2",
+        "searches": _CAMPUS_SEARCHES,
     },
 )
 
-# Curated sophomore / discovery programs — typically open late Aug through Sep.
-# The tracker watches each page for apply signals and content changes.
+# Bulge bracket + elite boutiques + large AM — sophomore / discovery program pages.
+# Most open late August through September (early fall).
 CURATED_PROGRAMS = (
+    # --- Bulge bracket ---
     {
         "firm": "Goldman Sachs",
-        "title": "Sophomore Externship / Discovery",
-        "division": "IB",
-        "url": "https://www.goldmansachs.com/careers/students/programs/americas",
+        "title": "Possibilities / Sophomore Externship / Discovery",
+        "division": "S&T",
+        "url": "https://www.goldmansachs.com/careers/students/programs",
         "typical_open": "August-September",
     },
     {
         "firm": "JPMorgan",
-        "title": "Winning Women / Launching Leaders",
+        "title": "Winning Women / Launching Leaders / Advancing Black Pathways",
         "division": "IB",
         "url": "https://careers.jpmorgan.com/us/en/students/programs",
         "typical_open": "August-September",
     },
     {
-        "firm": "Bank of America",
-        "title": "Campus Discovery Programs",
-        "division": "IB",
-        "url": "https://careers.bankofamerica.com/en-us/students/campus-programs",
-        "typical_open": "August-September",
-    },
-    {
-        "firm": "Citi",
-        "title": "Early Insight Programs",
-        "division": "IB",
-        "url": "https://jobs.citi.com/campus",
+        "firm": "JPMorgan",
+        "title": "Global Markets / Finance Rotation (Campus)",
+        "division": "S&T",
+        "url": "https://careers.jpmorgan.com/us/en/students/programs/global-markets",
         "typical_open": "August-September",
     },
     {
         "firm": "Morgan Stanley",
-        "title": "Early Insights / Discovery",
+        "title": "Early Insights / Discovery / Campus Programs",
         "division": "IB",
-        "url": "https://www.morganstanley.com/careers/career-opportunities-students-graduates",
+        "url": "https://www.morganstanley.com/people-opportunities/students-graduates",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "Bank of America",
+        "title": "Campus Discovery / Student Leaders",
+        "division": "IB",
+        "url": "https://campus.bankofamerica.com/",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "Citi",
+        "title": "Early Insight / Freshman & Sophomore Programs",
+        "division": "IB",
+        "url": "https://jobs.citi.com/",
         "typical_open": "August-September",
     },
     {
         "firm": "Wells Fargo",
-        "title": "Campus Programs",
+        "title": "Campus / Commercial Banking Programs",
         "division": "IB",
-        "url": "https://www.wellsfargojobs.com/en/jobs/?area=Campus",
+        "url": "https://www.wellsfargojobs.com/en/student-programs",
         "typical_open": "August-September",
     },
     {
+        "firm": "Barclays",
+        "title": "Discovery / Springboard / Markets Insight",
+        "division": "S&T",
+        "url": "https://search.jobs.barclays/",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "UBS",
+        "title": "Campus Programs / Discovery",
+        "division": "IB",
+        "url": "https://www.ubs.com/global/en/careers/students-and-graduates.html",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "Deutsche Bank",
+        "title": "Campus / dbAchieve / Sophomore Discovery",
+        "division": "IB",
+        "url": "https://careers.db.com/students-graduates",
+        "typical_open": "August-September",
+    },
+    # --- Elite boutiques (IB / advisory) ---
+    {
         "firm": "Evercore",
-        "title": "Sophomore Programs",
+        "title": "Sophomore / Underclassman Programs",
         "division": "IB",
         "url": "https://www.evercore.com/careers/students/",
         "typical_open": "August-September",
     },
     {
         "firm": "Moelis",
-        "title": "Underclassman Programs",
+        "title": "Underclassman / Campus Programs",
         "division": "IB",
-        "url": "https://www.moelis.com/careers/students/",
+        "url": "https://www.moelis.com/",
         "typical_open": "August-September",
     },
     {
         "firm": "Houlihan Lokey",
-        "title": "Campus Programs",
+        "title": "Campus Programs / Discovery",
         "division": "IB",
         "url": "https://hl.com/careers/students/",
         "typical_open": "August-September",
     },
     {
         "firm": "Lazard",
-        "title": "Diversity / Discovery Programs",
+        "title": "Diversity / Discovery / Campus",
         "division": "IB",
         "url": "https://www.lazard.com/careers/students/",
         "typical_open": "August-September",
@@ -313,32 +378,83 @@ CURATED_PROGRAMS = (
         "typical_open": "August-September",
     },
     {
-        "firm": "Barclays",
-        "title": "Discovery / Springboard",
-        "division": "S&T",
-        "url": "https://search.jobs.barclays/search-jobs",
+        "firm": "Centerview Partners",
+        "title": "Campus / Discovery Programs",
+        "division": "IB",
+        "url": "https://www.centerviewpartners.com/careers/",
         "typical_open": "August-September",
     },
     {
-        "firm": "UBS",
+        "firm": "Perella Weinberg",
         "title": "Campus Programs",
         "division": "IB",
-        "url": "https://www.ubs.com/global/en/careers/students-and-graduates.html",
+        "url": "https://pwpartners.com/careers/",
         "typical_open": "August-September",
     },
     {
+        "firm": "Guggenheim Securities",
+        "title": "Campus Programs",
+        "division": "IB",
+        "url": "https://www.guggenheimpartners.com/firm/careers",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "Greenhill",
+        "title": "Campus Programs",
+        "division": "IB",
+        "url": "https://www.greenhill.com/en/careers",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "Rothschild & Co",
+        "title": "Campus Programs",
+        "division": "IB",
+        "url": "https://www.rothschildandco.com/en/careers/",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "Jefferies",
+        "title": "Campus / Discovery Programs",
+        "division": "IB",
+        "url": "https://www.jefferies.com/Careers/Students",
+        "typical_open": "August-September",
+    },
+    # --- Asset management (AM track) ---
+    {
         "firm": "BlackRock",
-        "title": "Sophomore / Discovery",
+        "title": "Sophomore / Discovery / Founders",
         "division": "AM",
         "url": "https://careers.blackrock.com/students-and-graduates",
         "typical_open": "August-September",
     },
     {
         "firm": "PIMCO",
-        "title": "Career Discovery",
+        "title": "Career Discovery / Campus",
         "division": "AM",
         "url": "https://careers.pimco.com/careers/students-graduates",
         "typical_open": "August-September",
+    },
+    {
+        "firm": "Vanguard",
+        "title": "College Internship / Discovery",
+        "division": "AM",
+        "url": "https://www.vanguardjobs.com/",
+        "typical_open": "August-September",
+    },
+    # --- Dallas-heavy / diversity pipelines (profile fit) ---
+    {
+        "firm": "SEO Career",
+        "title": "SEO EDGE / SEO Alternative",
+        "division": "S&T",
+        "url": "https://www.seo-usa.org/our-programs/",
+        "typical_open": "Year-round",
+    },
+    {
+        "firm": "Project Destined",
+        "title": "Real Estate PE Training (Dallas)",
+        "division": "AM",
+        "url": "https://www.projectdestined.com/",
+        "typical_open": "Spring-Summer",
     },
 )
 
@@ -357,14 +473,17 @@ EMAIL_RECRUITING_FROM = (
     "greenhouse", "workday", "icims", "lever.co", "handshake",
     "morganstanley", "goldmansachs", "jpmorgan", "jpmchase", "citi.com",
     "bankofamerica", "wellsfargo", "evercore", "moelis", "lazard",
-    "pjtpartners", "barclays", "ubs.com", "blackrock", "pimco",
+    "pjtpartners", "barclays", "ubs.com", "blackrock", "pimco", "vanguard",
+    "deutschebank", "centerview", "pwpartners", "guggenheim", "greenhill",
+    "rothschild", "jefferies", "houlihanlokey", "seo-usa", "projectdestined",
     "campus", "recruiting", "talent", "university", "college",
 )
 EMAIL_RECRUITING_SUBJECT = (
     "internship", "intern ", "summer analyst", "discovery", "sophomore",
-    "early insight", "campus", "application", "recruiting", "career",
-    "global markets", "investment banking", "asset management",
-    "dallas", "dfw",
+    "freshman", "early insight", "campus", "application", "recruiting", "career",
+    "global markets", "investment banking", "asset management", "finance rotation",
+    "dallas", "dfw", "texas", "possibilities", "externship", "class of 2029",
+    "2028 summer", "seo", "rotation",
 )
 
 

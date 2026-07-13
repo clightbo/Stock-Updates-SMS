@@ -189,15 +189,15 @@ Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry r
 
 ## Internship tracker
 
-A recruiting bot focused on **Dallas finance internships** — Asset Management, Sales & Trading, and Investment Banking — with extra attention to **sophomore discovery programs** that typically open in **late August through September**.
+A recruiting bot focused on **Dallas / Texas finance internships** — Asset Management, Sales & Trading, and Investment Banking — tuned for **bulge bracket + elite boutique** campus programs, **finance rotations**, and **sophomore / freshman discovery** (Class of 2029 timeline).
 
 ```
 GitHub Actions (daily Aug–Nov, weekly otherwise at 8:00 AM ET)
         │
         ▼
 internship_tracker.py
-  1. Polls Greenhouse + Workday job boards (Jane Street, Point72, Morgan Stanley, etc.)
-  2. Watches curated sophomore / discovery program pages at major banks
+  1. Polls Greenhouse + Workday job boards (MS, Citi, Jane Street, Point72, boutiques, etc.)
+  2. Watches 25+ curated campus pages — GS, JPM, Evercore, Moelis, HL, Lazard, PJT, Centerview, BlackRock, and more
   3. (optional) Scans Outlook for recruiting emails about internships
   4. Filters for Dallas + AM/S&T/IB + sophomore/discovery roles
   5. Adds new postings to an **Internship Tracker** database in Notion
@@ -216,9 +216,9 @@ Set these as repository **variables** (Settings → Secrets and variables → Ac
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `INTERNSHIP_LOCATIONS` | `Dallas,DFW,Texas` | Location keywords to match |
+| `INTERNSHIP_LOCATIONS` | `Dallas,DFW,Texas,Lubbock` | Location keywords to match |
 | `INTERNSHIP_DIVISIONS` | `AM,S&T,IB` | Divisions to keep |
-| `INTERNSHIP_CLASS_YEARS` | `Sophomore,Discovery` | Class years / program types |
+| `INTERNSHIP_CLASS_YEARS` | `Freshman,Sophomore,Discovery` | Class years / program types |
 | `SKIP_MICROSOFT` | (unset) | Set to `1` to skip recruiting-email scan |
 
 ### Notion board
