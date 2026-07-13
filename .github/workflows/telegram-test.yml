@@ -1,0 +1,29 @@
+name: Telegram test (Campus Coach)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  send-hi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Send test hi via Campus Coach
+        env:
+          NETWORKING_TELEGRAM_BOT_TOKEN: ${{ secrets.NETWORKING_TELEGRAM_BOT_TOKEN }}
+          NETWORKING_TELEGRAM_CHAT_ID: ${{ secrets.NETWORKING_TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NETWORKING_BOT_NAME: ${{ vars.NETWORKING_BOT_NAME }}
+        run: python send_telegram_test.py
