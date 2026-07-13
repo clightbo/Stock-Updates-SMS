@@ -294,11 +294,33 @@ def main() -> None:
         print("Using built-in sample data (SAMPLE_DATA=1).")
         events, emails = SAMPLE_EVENTS, SAMPLE_EMAILS
     else:
-        print("Signing in to Microsoft...")
-        token = get_access_token()
-        print("Fetching calendar and inbox...")
-        events = fetch_calendar(token)
-        emails = fetch_recent_email(token)
+        try:
+            print("Signing in to Microsoft...")
+            token = get_access_token()
+            print("Fetching calendar and inbox...")
+            events = fetch_calendar(token)
+            emails = fetch_recent_email(token)
+        except SystemExit as exc:
+            msg = (
+                "Your morning AI agenda couldn't run — Microsoft sign-in expired.\n\n"
+                "Fix: GitHub → Actions → Microsoft sign-in (run once) → Run workflow. "
+                "Open the log, go to https://login.microsoft.com/device, enter the "
+                "code within 15 minutes, and sign in with your Outlook account."
+            )
+            print(f"warning: Microsoft unavailable ({exc})", file=sys.stderr)
+            if dry_run:
+                print("\n----- agenda (sign-in required) -----")
+                print(msg)
+                return
+            if os.environ.get("TELEGRAM_BOT_TOKEN"):
+                send_telegram(msg)
+                print("Sent sign-in reminder via Telegram.")
+            else:
+                sys.exit(str(exc))
+            return
+        except Exception as exc:
+            print(f"warning: Microsoft fetch failed ({exc})", file=sys.stderr)
+            events, emails = [], []
 
     print(f"Got {len(events)} calendar events, {len(emails)} emails.")
     raw_briefing = format_raw_briefing(events, emails)
