@@ -21,14 +21,14 @@ Environment variables:
     INTERNSHIP_DIVISIONS       Comma-separated divisions (default S&T,AM,IB)
     INTERNSHIP_CLASS_YEARS   Comma-separated class years (default Sophomore,Discovery)
     DRY_RUN                  "1" = print results; no Notion/Telegram writes
-    SAMPLE_DATA              "1" = use built-in sample recruiting emails
+    FORCE_NOTIFY             "1" = send Telegram even if Notion already has rows
 """
 
 from __future__ import annotations
 
 import os
 import sys
-from datetime import datetime
+from datetime import date, datetime
 
 from daily_agenda import (
     fetch_recent_email,
@@ -271,8 +271,34 @@ def fetch_recruiting_emails() -> list[dict]:
         return []
 
 
+def telegram_digest_key(day: date | None = None) -> str:
+    day = day or date.today()
+    return f"tg_digest|{day.isoformat()}"
+
+
+def mark_telegram_digest_sent(db_id: str, dry_run: bool) -> None:
+    key = telegram_digest_key()
+    if key_exists(db_id, key):
+        return
+    if dry_run:
+        print(f"DRY_RUN: would mark telegram digest sent ({key})")
+        return
+    add_posting(
+        db_id,
+        JobPosting(
+            title=f"Telegram digest sent {date.today().isoformat()}",
+            firm="Campus Coach",
+            url="",
+            source="Early alert",
+            notes="Daily networking digest delivered via Telegram.",
+        ),
+        key=key,
+    )
+
+
 def main() -> None:
     dry_run = os.environ.get("DRY_RUN") == "1"
+    force_notify = os.environ.get("FORCE_NOTIFY") == "1"
     locations = parse_csv_env(
         "INTERNSHIP_LOCATIONS",
         ("dallas", "dfw", "texas", "lubbock", "irving", "plano", "fort worth",
@@ -364,6 +390,22 @@ def main() -> None:
                   f"{posting.firm} — {posting.title}")
         new_early.append(posting)
 
+    all_early = [p for p, _ in early_candidates]
+    send_early = list(new_early)
+    send_roles = list(new_postings)
+
+    if force_notify:
+        send_early = all_early
+        send_roles = list(matched)
+        print(f"FORCE_NOTIFY=1: will send Telegram for {len(send_early)} early "
+              f"alerts and {len(send_roles)} roles.")
+    elif all_early and not new_early and not new_postings:
+        digest_key = telegram_digest_key()
+        if not key_exists(db_id, digest_key):
+            send_early = all_early[:8]
+            print(f"Daily networking digest: {len(send_early)} program(s) in the "
+                  "1–2 month window.")
+
     print(f"Done: {len(new_postings)} new roles, {len(new_early)} new early alerts, "
           f"{len(matched) - len(new_postings)} roles already tracked.")
 
@@ -378,27 +420,17 @@ def main() -> None:
 
     messages: list[str] = []
 
-    if new_early:
-        messages.append(format_early_alert_message(new_early))
+    if send_early:
+        messages.append(format_early_alert_message(send_early))
 
-    should_send_roles = bool(new_postings) or (
-        discovery_season_active() and matched and dry_run
-    )
-    if should_send_roles and new_postings:
+    if send_roles:
         messages.append(format_telegram_message(
-            new_postings,
-            total_scanned=len(raw),
-            season_note=season_banner(),
-        ))
-    elif should_send_roles and dry_run and matched:
-        messages.append(format_telegram_message(
-            matched[:5],
+            send_roles[:12],
             total_scanned=len(raw),
             season_note=season_banner(),
         ))
 
-    # Networking coach drafts (copy-paste LinkedIn / email) — separate messages.
-    coach_messages = build_networking_messages(new_early, new_postings)
+    coach_messages = build_networking_messages(send_early, send_roles)
 
     if not messages and not coach_messages:
         print("No new postings or early alerts; skipping Telegram.")
@@ -419,6 +451,9 @@ def main() -> None:
         send_networking_telegram(msg)
     for msg in coach_messages:
         send_networking_telegram(msg)
+
+    if send_early and not new_early and not force_notify:
+        mark_telegram_digest_sent(db_id, dry_run=False)
 
 
 if __name__ == "__main__":

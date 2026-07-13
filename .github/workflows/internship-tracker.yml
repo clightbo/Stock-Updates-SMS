@@ -14,6 +14,10 @@ on:
         description: "Use built-in sample recruiting emails (no Microsoft needed)"
         type: boolean
         default: false
+      force_notify:
+        description: "Send Telegram even if Notion already has these rows"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -50,4 +54,5 @@ jobs:
           SKIP_MICROSOFT: ${{ vars.SKIP_MICROSOFT }}
           DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
           SAMPLE_DATA: ${{ inputs.sample_data && '1' || '' }}
+          FORCE_NOTIFY: ${{ inputs.force_notify && '1' || '' }}
         run: python internship_tracker.py

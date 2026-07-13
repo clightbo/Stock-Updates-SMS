@@ -89,6 +89,9 @@ def send_networking_telegram(body: str) -> None:
         json={"chat_id": chat_id, "text": body},
         timeout=30,
     )
+    if response.status_code >= 400:
+        print(f"error: Telegram API {response.status_code}: {response.text[:300]}",
+              file=sys.stderr)
     response.raise_for_status()
     print("Networking bot message sent.")
 
