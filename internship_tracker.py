@@ -8,8 +8,10 @@ Flow: poll Greenhouse + Workday + curated program pages (+ optional Outlook inbo
 Runs on a schedule via GitHub Actions (see .github/workflows/internship-tracker.yml).
 
 Environment variables:
-    TELEGRAM_BOT_TOKEN       Bot token from @BotFather
-    TELEGRAM_CHAT_ID         Your chat id with the bot
+    NETWORKING_TELEGRAM_BOT_TOKEN  Separate bot from market summary (see README)
+    NETWORKING_TELEGRAM_CHAT_ID    Chat id with networking bot (can match main chat id)
+    NETWORKING_BOT_NAME            Display name in messages (default Campus Coach)
+    GITHUB_TOKEN                   GitHub Models for outreach drafts (auto in Actions)
     NOTION_TOKEN             Notion integration secret (optional but recommended)
     NOTION_PARENT_PAGE_ID    Notion hub page for the tracker database
     MS_REFRESH_TOKEN         Microsoft OAuth refresh token (optional; email scan)
@@ -29,10 +31,13 @@ import sys
 from datetime import datetime
 
 from daily_agenda import (
-    SAMPLE_EMAILS,
     fetch_recent_email,
     get_access_token,
-    send_telegram,
+)
+from networking_coach import (
+    build_networking_messages,
+    get_networking_telegram_credentials,
+    send_networking_telegram,
 )
 from internship_sources import (
     JobPosting,
@@ -314,6 +319,15 @@ def main() -> None:
         if early_candidates:
             print("\n----- Early alert preview -----")
             print(format_early_alert_message([p for p, _ in early_candidates[:5]]))
+        from networking_coach import build_networking_messages
+        previews = build_networking_messages(
+            [p for p, _ in early_candidates[:2]],
+            matched[:2],
+        )
+        if previews:
+            print("\n----- Campus Coach preview -----")
+            for msg in previews:
+                print(msg)
         print("----- end preview -----")
         return
 
@@ -354,9 +368,13 @@ def main() -> None:
     print(f"Done: {len(new_postings)} new roles, {len(new_early)} new early alerts, "
           f"{len(matched) - len(new_postings)} roles already tracked.")
 
-    if not os.environ.get("TELEGRAM_BOT_TOKEN"):
+    token, _ = get_networking_telegram_credentials()
+    if not token:
         if dry_run:
-            print("No TELEGRAM_BOT_TOKEN; skipping send.")
+            print("No NETWORKING_TELEGRAM_BOT_TOKEN; skipping send.")
+        else:
+            print("note: set NETWORKING_TELEGRAM_BOT_TOKEN for a separate recruiting "
+                  "bot (see README). Skipping Telegram.", file=sys.stderr)
         return
 
     messages: list[str] = []
@@ -380,20 +398,28 @@ def main() -> None:
             season_note=season_banner(),
         ))
 
-    if not messages:
+    # Networking coach drafts (copy-paste LinkedIn / email) — separate messages.
+    coach_messages = build_networking_messages(new_early, new_postings)
+
+    if not messages and not coach_messages:
         print("No new postings or early alerts; skipping Telegram.")
         return
 
-    combined = "\n\n".join(messages)
-    if len(combined) > MESSAGE_CHAR_LIMIT:
-        combined = combined[: MESSAGE_CHAR_LIMIT - 3] + "..."
-
     if dry_run:
-        print("\n----- Telegram preview -----")
-        print(combined)
+        print("\n----- Networking bot preview -----")
+        for msg in messages:
+            print(msg)
+            print()
+        for msg in coach_messages:
+            print(msg)
+            print()
         print("----- end preview -----")
-    else:
-        send_telegram(combined)
+        return
+
+    for msg in messages:
+        send_networking_telegram(msg)
+    for msg in coach_messages:
+        send_networking_telegram(msg)
 
 
 if __name__ == "__main__":

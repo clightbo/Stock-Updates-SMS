@@ -205,12 +205,45 @@ internship_tracker.py
   5. Excludes women-only programs; prioritizes Hispanic / Latino / Black fellowships
   6. Sends Telegram **1–2 months before** programs open so you can network first
   7. Adds new postings to an **Internship Tracker** database in Notion
-  8. Telegram alert when something new opens or a heads-up is due
+  8. **Campus Coach** (separate Telegram bot) sends alerts + copy-paste networking messages
 ```
 
-### Setup (builds on the Notion + Telegram setup)
+### Separate bot from market messages
 
-You already have `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `NOTION_TOKEN`, and `NOTION_PARENT_PAGE_ID` from the earlier pipelines. For recruiting-email scanning, you also need the Microsoft sign-in from the [daily agenda](#daily-ai-agenda) setup (`MS_REFRESH_TOKEN` + `GH_PAT`).
+Internship and networking alerts use a **second Telegram bot** so they never mix with your market summary / agenda messages.
+
+**1. Create the networking bot (~2 min)**
+
+1. Message [@BotFather](https://t.me/botfather) → `/newbot`
+2. Name it something like **Campus Coach** or **Recruiting Scout** (this is the name you see in Telegram)
+3. Save the **bot token**
+4. Open the new bot, send `hi`, then get your chat id from `https://api.telegram.org/bot<TOKEN>/getUpdates` (same as market bot setup)
+
+**2. Add repository secrets**
+
+| Secret | Value |
+|---|---|
+| `NETWORKING_TELEGRAM_BOT_TOKEN` | Token from BotFather for the new bot |
+| `NETWORKING_TELEGRAM_CHAT_ID` | Your chat id (usually the same number as `TELEGRAM_CHAT_ID`) |
+
+Optional variable: `NETWORKING_BOT_NAME` = `Campus Coach` (signature at the bottom of messages)
+
+Your **market bot** secrets stay untouched — market summary and daily agenda keep using `TELEGRAM_BOT_TOKEN`.
+
+### What Campus Coach sends
+
+When a program is **1–2 months out** or a **new role posts**, you get:
+
+1. **Alert** — firm, program, link
+2. **Who to message** — TTU alumni, SEO mentors, RBA contacts
+3. **LinkedIn note** — copy-paste ready (under 280 chars)
+4. **Longer email** — copy-paste ready for coffee chat asks
+
+Example signature: `— Campus Coach`
+
+### Setup (Notion + optional email scan)
+
+You need `NOTION_TOKEN` and `NOTION_PARENT_PAGE_ID` from the [Notion planner](#notion-planner) setup. For recruiting-email scanning, add Microsoft sign-in from the [daily agenda](#daily-ai-agenda) (`MS_REFRESH_TOKEN` + `GH_PAT`).
 
 Then test it: **Actions → Internship tracker → Run workflow**. Check *dry run* to preview matches in the logs, or check *sample data* to test the email filter without Microsoft. After that it runs **every day at 8:00 AM ET**.
 
