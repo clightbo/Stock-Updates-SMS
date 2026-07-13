@@ -199,9 +199,11 @@ internship_tracker.py
   1. Polls Greenhouse + Workday job boards (MS, Citi, Jane Street, Point72, boutiques, etc.)
   2. Watches 25+ curated campus pages — GS, JPM, Evercore, Moelis, HL, Lazard, PJT, Centerview, BlackRock, and more
   3. (optional) Scans Outlook for recruiting emails about internships
-  4. Filters for Dallas + AM/S&T/IB + sophomore/discovery roles
-  5. Adds new postings to an **Internship Tracker** database in Notion
-  6. Telegram alert when something new opens
+  4. Filters for Dallas / NYC / Texas + IB (primary) / markets / AM
+  5. Excludes women-only programs; prioritizes Hispanic / Latino / Black fellowships
+  6. Sends Telegram **1–2 months before** programs open so you can network first
+  7. Adds new postings to an **Internship Tracker** database in Notion
+  8. Telegram alert when something new opens or a heads-up is due
 ```
 
 ### Setup (builds on the Notion + Telegram setup)
@@ -216,8 +218,8 @@ Set these as repository **variables** (Settings → Secrets and variables → Ac
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `INTERNSHIP_LOCATIONS` | `Dallas,DFW,Texas,Lubbock` | Location keywords to match |
-| `INTERNSHIP_DIVISIONS` | `AM,S&T,IB` | Divisions to keep |
+| `INTERNSHIP_LOCATIONS` | `Dallas,DFW,Texas,Lubbock,NYC,New York` | Location keywords |
+| `INTERNSHIP_DIVISIONS` | `IB,S&T,AM` | Divisions (IB prioritized) |
 | `INTERNSHIP_CLASS_YEARS` | `Freshman,Sophomore,Discovery` | Class years / program types |
 | `SKIP_MICROSOFT` | (unset) | Set to `1` to skip recruiting-email scan |
 
