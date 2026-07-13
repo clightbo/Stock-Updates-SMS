@@ -5,7 +5,7 @@ Personal automation pipelines that run free in the cloud on GitHub Actions and m
 1. **Daily market summary** — watchlist prices + AI-condensed macro news, weekday mornings ([setup](#market-summary))
 2. **Daily AI agenda** — an AI chief of staff that reads your Outlook inbox and calendar and messages you a morning plan ([setup](#daily-ai-agenda))
 3. **Notion planner sync** — an AI scheduling bot that turns your email and calendar into an organized planner board in Notion ([setup](#notion-planner))
-4. **Internship tracker** — watches finance job boards and sophomore discovery programs for Dallas AM / S&T / IB roles, with extra focus during early-fall recruiting season ([setup](#internship-tracker))
+4. **Internship tracker** — watches finance job boards and discovery programs for Dallas / NYC **S&T, markets rotations, AM, equity research, and IB** ([setup](#internship-tracker))
 
 <a name="market-summary"></a>
 
@@ -189,17 +189,19 @@ Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry r
 
 ## Internship tracker
 
-A recruiting bot focused on **Dallas / Texas finance internships** — Asset Management, Sales & Trading, and Investment Banking — tuned for **bulge bracket + elite boutique** campus programs, **finance rotations**, and **sophomore / freshman discovery** (Class of 2029 timeline).
+A recruiting bot focused on **Dallas / Texas / NYC** finance roles — **S&T, markets rotations, equity research, AM, and IB** — tuned for **bulge bracket + elite boutique** campus programs and **Hispanic / Latino / Black diversity fellowships** (Class of 2029 timeline).
+
+Runs **every day** at 8:00 AM ET.
 
 ```
-GitHub Actions (daily Aug–Nov, weekly otherwise at 8:00 AM ET)
+GitHub Actions (daily 8:00 AM ET)
         │
         ▼
 internship_tracker.py
   1. Polls Greenhouse + Workday job boards (MS, Citi, Jane Street, Point72, boutiques, etc.)
   2. Watches 25+ curated campus pages — GS, JPM, Evercore, Moelis, HL, Lazard, PJT, Centerview, BlackRock, and more
   3. (optional) Scans Outlook for recruiting emails about internships
-  4. Filters for Dallas / NYC / Texas + IB (primary) / markets / AM
+  4. Filters for Dallas / NYC / Texas + S&T / markets rotations / AM / equity research / IB
   5. Excludes women-only programs; prioritizes Hispanic / Latino / Black fellowships
   6. Sends Telegram **1–2 months before** programs open so you can network first
   7. Adds new postings to an **Internship Tracker** database in Notion
@@ -210,7 +212,7 @@ internship_tracker.py
 
 You already have `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `NOTION_TOKEN`, and `NOTION_PARENT_PAGE_ID` from the earlier pipelines. For recruiting-email scanning, you also need the Microsoft sign-in from the [daily agenda](#daily-ai-agenda) setup (`MS_REFRESH_TOKEN` + `GH_PAT`).
 
-Then test it: **Actions → Internship tracker → Run workflow**. Check *dry run* to preview matches in the logs, or check *sample data* to test the email filter without Microsoft. After that it runs automatically — **daily during discovery season (Aug–Nov)** and **weekly** the rest of the year.
+Then test it: **Actions → Internship tracker → Run workflow**. Check *dry run* to preview matches in the logs, or check *sample data* to test the email filter without Microsoft. After that it runs **every day at 8:00 AM ET**.
 
 ### Customize filters
 
@@ -219,7 +221,7 @@ Set these as repository **variables** (Settings → Secrets and variables → Ac
 | Variable | Default | Purpose |
 |---|---|---|
 | `INTERNSHIP_LOCATIONS` | `Dallas,DFW,Texas,Lubbock,NYC,New York` | Location keywords |
-| `INTERNSHIP_DIVISIONS` | `IB,S&T,AM` | Divisions (IB prioritized) |
+| `INTERNSHIP_DIVISIONS` | `S&T,AM,IB` | Divisions (markets / AM / IB — all equal) |
 | `INTERNSHIP_CLASS_YEARS` | `Freshman,Sophomore,Discovery` | Class years / program types |
 | `SKIP_MICROSOFT` | (unset) | Set to `1` to skip recruiting-email scan |
 
@@ -237,7 +239,8 @@ Your hub page can hold three databases side by side:
 
 ### Notes
 
-- **Early-fall focus:** during August–November the workflow runs daily and the filter is tuned for sophomore discovery programs. Expect most bank discovery programs to post in late Aug–Sep.
+- **Daily run:** every morning at 8:00 AM ET, year-round.
+- **Early-fall focus:** during August–November the filter is tuned for sophomore discovery programs. Expect most bank discovery programs to post in late Aug–Sep.
 - **Dallas:** the filter requires Dallas/DFW/Texas in the posting location, or a national discovery program page that mentions Dallas. Add more cities via `INTERNSHIP_LOCATIONS` if you're also targeting NYC/Houston.
 - **Add firms:** edit `GREENHOUSE_BOARDS`, `WORKDAY_SOURCES`, and `CURATED_PROGRAMS` at the top of `internship_sources.py`.
 - **Schedule:** edit the `cron` lines in `.github/workflows/internship-tracker.yml` (times are UTC; `0 12 * * *` = 8:00 AM ET in summer).

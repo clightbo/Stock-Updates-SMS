@@ -1,4 +1,4 @@
-"""Finance internship tracker — Dallas AM / S&T / IB + sophomore discovery.
+"""Finance internship tracker — Dallas / NYC S&T, AM, equity research, IB + discovery.
 
 Flow: poll Greenhouse + Workday + curated program pages (+ optional Outlook inbox)
       -> filter for Dallas finance roles and sophomore discovery programs
@@ -16,7 +16,7 @@ Environment variables:
     GH_PAT                   GitHub PAT with repo scope (keeps MS token fresh)
     SKIP_MICROSOFT           "1" = skip recruiting-email scan
     INTERNSHIP_LOCATIONS     Comma-separated location keywords (default Dallas,DFW,Texas)
-    INTERNSHIP_DIVISIONS       Comma-separated divisions (default AM,S&T,IB)
+    INTERNSHIP_DIVISIONS       Comma-separated divisions (default S&T,AM,IB)
     INTERNSHIP_CLASS_YEARS   Comma-separated class years (default Sophomore,Discovery)
     DRY_RUN                  "1" = print results; no Notion/Telegram writes
     SAMPLE_DATA              "1" = use built-in sample recruiting emails
@@ -216,7 +216,7 @@ def format_telegram_message(
 
     if not new_postings:
         lines.append(f"No new roles today ({total_scanned} scanned).")
-        lines.append("IB discovery programs usually open late Aug–Sep.")
+        lines.append("Markets / discovery programs usually open late Aug–Sep.")
         return "\n".join(lines)
 
     lines.append(f"NEW ({len(new_postings)})")
@@ -240,12 +240,12 @@ def format_telegram_message(
 def season_banner() -> str:
     if discovery_season_active():
         return (
-            "DISCOVERY SEASON — BB + boutique IB programs opening (Aug–Nov). "
-            "Watching Dallas, NYC, and national diversity fellowships."
+            "DISCOVERY SEASON — markets rotations, S&T, AM, equity research & IB "
+            "programs opening (Aug–Nov). Dallas, NYC, and national fellowships."
         )
     return (
-        "Off-season — watching for early alerts (1–2 months before open) "
-        "and new IB / markets postings in Dallas & NYC."
+        "Daily scan — watching markets rotations, S&T, AM, equity research & IB "
+        "in Dallas & NYC, plus 1–2 month early alerts."
     )
 
 
@@ -273,7 +273,7 @@ def main() -> None:
         ("dallas", "dfw", "texas", "lubbock", "irving", "plano", "fort worth",
          "new york", "nyc", "manhattan"),
     )
-    divisions = parse_csv_env("INTERNSHIP_DIVISIONS", ("IB", "S&T", "AM"))
+    divisions = parse_csv_env("INTERNSHIP_DIVISIONS", ("S&T", "AM", "IB"))
     class_years = parse_csv_env(
         "INTERNSHIP_CLASS_YEARS", ("Freshman", "Sophomore", "Discovery"),
     )

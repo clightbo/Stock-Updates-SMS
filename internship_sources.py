@@ -1,9 +1,8 @@
 """Job sources and filters for the finance internship tracker.
 
 Tuned for a Texas Tech Finance (Class of 2029) profile: Dallas / Texas / NYC,
-bulge-bracket + elite-boutique IB (primary), global markets (S&T), and AM.
-Prioritizes Hispanic / Latino / Black diversity fellowships and discovery
-programs — excludes women-only listings.
+bulge-bracket + elite boutiques across S&T / markets rotations, equity research,
+AM, and IB. Prioritizes Hispanic / Latino / Black diversity fellowships.
 
 Polls public Greenhouse and Workday career APIs plus a curated list of
 sophomore / discovery program pages that typically open in early fall.
@@ -36,14 +35,15 @@ DIVISION_KEYWORDS = {
     "AM": (
         "asset management", "wealth management", "private wealth", "pwm",
         "portfolio management", "investment management", "private bank",
-        "wealth advisor", "equity research", "buy-side", "buyside",
-        "portfolio analyst", "fund analyst",
+        "wealth advisor", "equity research", "research intern", "research analyst",
+        "buy-side", "buyside", "portfolio analyst", "fund analyst",
     ),
     "S&T": (
         "sales and trading", "global markets", "securities", "fixed income",
         "equities", "commodities", "macro", "rates", "fx ", "foreign exchange",
         "markets intern", "trading intern", "capital markets", "structured",
-        "ficc", "equity derivatives",
+        "ficc", "equity derivatives", "markets fellowship", "markets rotation",
+        "finance rotation", "rotation program",
     ),
     "IB": (
         "investment banking", "ibd", "corporate finance", "m&a", "mergers",
@@ -86,7 +86,7 @@ DEFAULT_LOCATIONS = (
     "dallas", "dfw", "texas", "lubbock", "irving", "plano", "fort worth",
     "new york", "nyc", "manhattan",
 )
-DEFAULT_DIVISIONS = ("IB", "S&T", "AM")
+DEFAULT_DIVISIONS = ("S&T", "AM", "IB")
 DEFAULT_CLASS_YEARS = ("Freshman", "Sophomore", "Discovery")
 
 # How many days before typical open date to send early heads-up alerts.
@@ -290,16 +290,20 @@ GREENHOUSE_BOARDS = (
 _CAMPUS_SEARCHES = (
     "2028 Summer Analyst",
     "2027 Summer Analyst",
+    "Global Markets Intern",
+    "Markets Fellowship",
+    "Markets Rotation",
+    "Finance Rotation",
+    "Sales and Trading Intern",
+    "Equity Research Intern",
+    "Asset Management Intern",
+    "Investment Banking Intern",
     "Sophomore Discovery",
     "Early Insight",
     "Early Insights",
-    "Investment Banking Intern",
-    "Global Markets Intern",
     "Hispanic Fellowship",
     "Latino Fellowship",
     "Black Fellowship",
-    "Markets Fellowship",
-    "Finance Rotation",
     "Possibilities",
     "Dallas Intern",
     "New York Intern",
@@ -361,6 +365,17 @@ UPCOMING_PROGRAMS: tuple[UpcomingProgram, ...] = (
         diversity="Hispanic / Latino",
         networking_tip=(
             "Message TTU alumni at JPM; mention SEO EDGE and your DC banking trip."
+        ),
+    ),
+    UpcomingProgram(
+        firm="JPMorgan",
+        title="Global Markets / Finance Rotation",
+        division="S&T",
+        url="https://careers.jpmorgan.com/us/en/students/programs/global-markets",
+        opens_month=8,
+        networking_tip=(
+            "Ask SEO mentors about markets rotation timeline; "
+            "reach out to JPM Dallas & NYC desk analysts."
         ),
     ),
     UpcomingProgram(
@@ -511,6 +526,13 @@ CURATED_PROGRAMS = (
         "title": "Launching Leaders / Advancing Black Pathways",
         "division": "IB",
         "url": "https://careers.jpmorgan.com/us/en/students/programs",
+        "typical_open": "August-September",
+    },
+    {
+        "firm": "JPMorgan",
+        "title": "Global Markets / Finance Rotation",
+        "division": "S&T",
+        "url": "https://careers.jpmorgan.com/us/en/students/programs/global-markets",
         "typical_open": "August-September",
     },
     {
