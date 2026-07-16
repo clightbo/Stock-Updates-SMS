@@ -51,13 +51,16 @@ from daily_agenda import (
     graph_post,
     send_telegram,
 )
-from financial_calendar import fetch_financial_announcements
+from financial_calendar import DEFAULT_DAYS_AHEAD, fetch_financial_announcements
+from notion_client import get_or_create_database, rich_text_chunks
 
 NOTION_API = "https://api.notion.com/v1"
 NOTION_VERSION = "2022-06-28"
 DB_TITLE = "AI Planner"
+MARKETS_DB_TITLE = "Markets Calendar"
 
 CALENDAR_DAYS_AHEAD = 7
+MARKETS_DAYS_AHEAD = DEFAULT_DAYS_AHEAD
 LLM_MODEL = os.environ.get("LLM_MODEL") or "openai/gpt-4o-mini"
 
 ITEM_TYPES = ["Task", "Deadline", "Follow-up", "Meeting to schedule", "Event"]
@@ -358,7 +361,12 @@ def add_page(db_id: str, item: dict) -> None:
         "Key": {"rich_text": [{"text": {"content": item["key"]}}]},
     }
     if item.get("due"):
-        properties["Due"] = {"date": {"start": item["due"]}}
+        # Timed market events include an ISO offset so Notion calendar
+        # views place them at the correct ET hour.
+        date_prop = {"start": item["due"]}
+        if item.get("due_end"):
+            date_prop["end"] = item["due_end"]
+        properties["Due"] = {"date": date_prop}
     if item.get("from"):
         properties["From"] = {"rich_text": [{"text": {"content": item["from"]}}]}
     if item.get("notes"):
@@ -367,6 +375,70 @@ def add_page(db_id: str, item: dict) -> None:
         "parent": {"database_id": db_id},
         "properties": properties,
     })
+
+
+def get_markets_calendar_database() -> str:
+    """Dedicated Notion database meant to be viewed as a calendar."""
+    return get_or_create_database(MARKETS_DB_TITLE, {
+        "Name": {"title": {}},
+        "Date": {"date": {}},
+        "Impact": {"select": {"options": [
+            {"name": "High", "color": "red"},
+            {"name": "Medium", "color": "yellow"},
+            {"name": "Low", "color": "gray"},
+        ]}},
+        "Type": {"select": {"options": [
+            {"name": "Fed", "color": "purple"},
+            {"name": "Macro", "color": "blue"},
+            {"name": "Earnings", "color": "green"},
+        ]}},
+        "Notes": {"rich_text": {}},
+        "Key": {"rich_text": {}},
+    })
+
+
+def sync_markets_calendar(financial_events: list[dict], dry_run: bool) -> int:
+    """Write Fed/macro/earnings events into the Markets Calendar database."""
+    if dry_run and not os.environ.get("NOTION_TOKEN"):
+        print("DRY_RUN=1 and no NOTION_TOKEN; would sync Markets Calendar.")
+        return 0
+
+    db_id = get_markets_calendar_database()
+    kind_map = {"fed": "Fed", "macro": "Macro", "earnings": "Earnings",
+                "econ": "Macro"}
+    added = 0
+    for ev in financial_events:
+        key = dedupe_key("mktcal", ev["title"], ev["start"])
+        if key_exists(db_id, key):
+            continue
+        impact = ev.get("impact") or "Medium"
+        if impact not in ("High", "Medium", "Low"):
+            impact = "Medium"
+        event_type = kind_map.get(ev.get("kind", ""), "Macro")
+        properties = {
+            "Name": {"title": [{"text": {"content": ev["title"]}}]},
+            "Date": {"date": {
+                "start": ev["start"],
+                "end": ev.get("end") or ev["start"],
+            }},
+            "Impact": {"select": {"name": impact}},
+            "Type": {"select": {"name": event_type}},
+            "Key": {"rich_text": [{"text": {"content": key}}]},
+        }
+        if ev.get("notes"):
+            properties["Notes"] = {"rich_text": rich_text_chunks(ev["notes"])}
+        if dry_run:
+            print(f"DRY_RUN: would add Markets Calendar [{impact}] {ev['title']}")
+        else:
+            notion_request("POST", "/pages", {
+                "parent": {"database_id": db_id},
+                "properties": properties,
+            })
+            print(f"Added Markets Calendar [{impact}] {ev['title']}")
+        added += 1
+    print(f"Markets Calendar: {added} new, "
+          f"{len(financial_events) - added} already present.")
+    return added
 
 
 # ------------------------------------------------------------------- items
@@ -398,7 +470,10 @@ def build_items(events: list[dict], emails: list[dict],
         items.append({
             "title": ev["title"],
             "type": "Event",
+            # Keep full ISO timestamp (with offset) so Notion calendar
+            # views show the correct ET time, not just the date.
             "due": ev["start"][:10] if ev["all_day"] else ev["start"],
+            "due_end": None if ev["all_day"] else ev.get("end"),
             "notes": ev.get("notes", ""),
             "from": ev.get("kind", "markets"),
             "source": "Markets",
@@ -464,9 +539,9 @@ def main() -> None:
             events, emails, token = [], [], None
     print(f"Got {len(events)} calendar events, {len(emails)} emails.")
 
-    print("Fetching financial announcements...")
-    financial_events = fetch_financial_announcements(CALENDAR_DAYS_AHEAD)
-    print(f"Got {len(financial_events)} macro/earnings events this week.")
+    print(f"Fetching financial announcements (next {MARKETS_DAYS_AHEAD} days)...")
+    financial_events = fetch_financial_announcements(MARKETS_DAYS_AHEAD)
+    print(f"Got {len(financial_events)} Fed/macro/earnings events.")
 
     if (token and financial_events
             and os.environ.get("SKIP_OUTLOOK_CALENDAR") != "1"):
@@ -484,7 +559,14 @@ def main() -> None:
         for item in items:
             due = f" (due {item['due']})" if item["due"] else ""
             print(f"- [{item['type']}] {item['title']}{due}")
+        print("\nMarkets Calendar candidates:")
+        for ev in financial_events:
+            print(f"- [{ev.get('impact', '?')}] {ev['title']} @ {ev['start']}")
         return
+
+    # Dedicated calendar database first — this is the one to open as a
+    # Notion Calendar view for Fed/macro/earnings times.
+    markets_added = sync_markets_calendar(financial_events, dry_run)
 
     db_id = get_planner_database()
     ensure_markets_source(db_id)
@@ -500,7 +582,9 @@ def main() -> None:
             add_page(db_id, item)
             print(f"Added [{item['type']}] {item['title']}")
         added.append(item)
-    print(f"Done: {len(added)} new, {len(items) - len(added)} already in Notion.")
+    print(f"Done: {len(added)} new in AI Planner, "
+          f"{len(items) - len(added)} already there; "
+          f"{markets_added} new in Markets Calendar.")
 
     if added and not dry_run and os.environ.get("TELEGRAM_BOT_TOKEN"):
         lines = [f"Planner synced: {len(added)} new item(s) in Notion"]

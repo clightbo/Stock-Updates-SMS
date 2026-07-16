@@ -11,8 +11,9 @@ import yfinance as yf
 
 ECON_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 DEFAULT_WATCHLIST = ["SPY", "QQQ", "DIA", "AAPL", "NVDA", "MSFT"]
-# US Eastern offset baked into the econ feed timestamps (e.g. -04:00 in summer).
+# Fallback Eastern offset when a feed timestamp has no tz (DST-aware enough for summer).
 ET = timezone(timedelta(hours=-4))
+DEFAULT_DAYS_AHEAD = 14
 
 
 def get_watchlist() -> list[str]:
@@ -33,10 +34,29 @@ def _is_important_econ(title: str, impact: str) -> bool:
     title_l = title.lower()
     if impact in ("High", "Medium"):
         return True
-    return any(kw in title_l for kw in ("fomc", "fed ", "federal reserve", "powell"))
+    # Always keep Fed/FOMC/Powell even when impact is Low.
+    return any(
+        kw in title_l
+        for kw in ("fomc", "fed ", "federal reserve", "powell", "warsh", "jefferson")
+    )
 
 
-def fetch_econ_announcements(days_ahead: int = 7) -> list[dict]:
+def _classify_kind(title: str, default: str = "macro") -> str:
+    title_l = title.lower()
+    if any(kw in title_l for kw in ("fomc", "fed ", "federal reserve", "powell",
+                                     "warsh", "jefferson", "monetary policy")):
+        return "fed"
+    return default
+
+
+def _iso_with_offset(dt: datetime) -> str:
+    """Notion calendar views need a timezone offset on timed dates."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=ET)
+    return dt.isoformat(timespec="minutes")
+
+
+def fetch_econ_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD) -> list[dict]:
     """US macro releases that can move markets (high/medium + Fed)."""
     try:
         events = requests.get(
@@ -55,27 +75,32 @@ def fetch_econ_announcements(days_ahead: int = 7) -> list[dict]:
         if ev.get("country") != "USD":
             continue
         title = ev.get("title", "").strip()
-        impact = ev.get("impact", "")
+        impact = ev.get("impact", "") or "Low"
         if not title or not _is_important_econ(title, impact):
             continue
         start_dt = _parse_econ_datetime(ev.get("date", ""))
         if not start_dt or start_dt < now or start_dt > end:
             continue
+        if start_dt.tzinfo is None:
+            start_dt = start_dt.replace(tzinfo=ET)
+        end_dt = start_dt + timedelta(minutes=30)
         notes = f"{impact} impact"
         if ev.get("forecast"):
             notes += f"; forecast {ev['forecast']}, prev {ev.get('previous', '?')}"
+        kind = _classify_kind(title, "macro")
         rows.append({
             "title": f"[Markets] {title}",
-            "start": start_dt.strftime("%Y-%m-%dT%H:%M"),
-            "end": (start_dt + timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M"),
+            "start": _iso_with_offset(start_dt),
+            "end": _iso_with_offset(end_dt),
             "all_day": False,
             "notes": notes,
-            "kind": "econ",
+            "kind": kind,
+            "impact": impact if impact in ("High", "Medium", "Low") else "Low",
         })
     return rows
 
 
-def fetch_earnings_announcements(days_ahead: int = 7,
+def fetch_earnings_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD,
                                  tickers: list[str] | None = None) -> list[dict]:
     """Upcoming earnings dates for the watchlist."""
     tickers = tickers or get_watchlist()
@@ -103,26 +128,32 @@ def fetch_earnings_announcements(days_ahead: int = 7,
                 day = raw_date.date() if hasattr(raw_date, "hour") else raw_date
             else:
                 day = datetime.fromisoformat(str(raw_date)[:10]).date()
-            start_dt = datetime.combine(day, datetime.min.time()).replace(tzinfo=ET)
+            # Market open reminder time (ET) on earnings day.
+            start_dt = datetime.combine(day, datetime.min.time()).replace(
+                hour=8, minute=0, tzinfo=ET)
             if start_dt < now.replace(hour=0, minute=0, second=0, microsecond=0):
                 continue
             if start_dt > end:
                 continue
+            end_dt = start_dt + timedelta(hours=1)
             est_eps = cal.get("Earnings Average")
-            notes = f"Earnings report; est EPS {est_eps}" if est_eps else "Earnings report"
+            notes = (f"Earnings report; est EPS {est_eps}"
+                     if est_eps else "Earnings report")
             rows.append({
                 "title": f"[Markets] {ticker} earnings",
-                "start": start_dt.strftime("%Y-%m-%dT08:00"),
-                "end": start_dt.strftime("%Y-%m-%dT09:00"),
+                "start": _iso_with_offset(start_dt),
+                "end": _iso_with_offset(end_dt),
                 "all_day": False,
                 "notes": notes,
                 "kind": "earnings",
+                "impact": "High",
             })
     return rows
 
 
-def fetch_financial_announcements(days_ahead: int = 7) -> list[dict]:
+def fetch_financial_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD) -> list[dict]:
     """Merge macro + earnings, sorted by start time."""
-    events = fetch_econ_announcements(days_ahead) + fetch_earnings_announcements(days_ahead)
+    events = (fetch_econ_announcements(days_ahead)
+              + fetch_earnings_announcements(days_ahead))
     events.sort(key=lambda ev: ev["start"])
     return events
