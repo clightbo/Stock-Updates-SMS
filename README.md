@@ -141,7 +141,12 @@ Then test it: **Actions → Daily AI agenda → Run workflow**. It runs daily at
 
 ## Notion planner sync
 
-Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. **Timed market events** (Fed/FOMC, CPI/jobs, other high/medium US releases, and watchlist earnings for the next 14 days) auto-create in a dedicated **Markets Calendar** Notion database (with ET times) and also appear in AI Planner as **Markets** events. Newsletters and promo noise are skipped. Every row has a Status (Inbox → Planned → Done) so you can run your week from one board. Nothing is ever added twice — each row carries a hidden dedupe key.
+Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. **Timed market events** auto-create in **Markets Calendar** / the Google ICS feed:
+- **FOMC rate decisions** for the rest of 2026–2027 at **2:00 PM ET** (presser usually ~2:30)
+- **Watchlist earnings** ~90 days ahead (8:00 AM ET reminder on report day)
+- **CPI / jobs / other high-medium US macro** for about the **current week** (free weekly feed)
+
+Newsletters and promo noise are skipped. Every row has a Status (Inbox → Planned → Done) so you can run your week from one board. Nothing is ever added twice — each row carries a hidden dedupe key.
 
 ```
 GitHub Actions (cron, 7:30 AM + 5:00 PM ET)

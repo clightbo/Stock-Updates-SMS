@@ -13,7 +13,29 @@ ECON_CALENDAR_URL = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
 DEFAULT_WATCHLIST = ["SPY", "QQQ", "DIA", "AAPL", "NVDA", "MSFT"]
 # Fallback Eastern offset when a feed timestamp has no tz (DST-aware enough for summer).
 ET = timezone(timedelta(hours=-4))
-DEFAULT_DAYS_AHEAD = 14
+# Near-term macro/earnings window. FOMC is loaded for the rest of the year
+# separately (see fetch_fomc_announcements).
+DEFAULT_DAYS_AHEAD = 90
+
+# Official remaining 2026 FOMC *decision* days (rate announcement 2:00 PM ET).
+# Source: federalreserve.gov / FOMC calendars. SEP = includes dot plot.
+FOMC_DECISION_DAYS_2026 = [
+    # (date ISO, has_sep)
+    ("2026-07-29", False),
+    ("2026-09-16", True),
+    ("2026-10-28", False),
+    ("2026-12-09", True),
+]
+FOMC_DECISION_DAYS_2027 = [
+    ("2027-01-27", False),
+    ("2027-03-17", True),
+    ("2027-04-28", False),
+    ("2027-06-16", True),
+    ("2027-07-28", False),
+    ("2027-09-15", True),
+    ("2027-10-27", False),
+    ("2027-12-08", True),
+]
 
 
 def get_watchlist() -> list[str]:
@@ -100,6 +122,51 @@ def fetch_econ_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD) -> list[dict]
     return rows
 
 
+def fetch_fomc_announcements(days_ahead: int = 400) -> list[dict]:
+    """FOMC rate-decision days for the rest of this year (+ next), timed 2:00 PM ET.
+
+    Macro RSS only covers ~this week, so FOMC is loaded from a year calendar
+    so Notion/Google show Fed events months ahead.
+    """
+    now = datetime.now(ET)
+    end = now + timedelta(days=days_ahead)
+    rows = []
+
+    # Prefer static official decision days (accurate 2pm ET announcements).
+    year = now.year
+    curated = []
+    if year <= 2026:
+        curated.extend(FOMC_DECISION_DAYS_2026)
+    if year <= 2027:
+        curated.extend(FOMC_DECISION_DAYS_2027)
+
+    seen_days: set[str] = set()
+    for day, has_sep in curated:
+        if day in seen_days:
+            continue
+        seen_days.add(day)
+        start_dt = datetime.fromisoformat(f"{day}T14:00:00").replace(tzinfo=ET)
+        if start_dt < now or start_dt > end:
+            continue
+        end_dt = start_dt + timedelta(hours=1)  # covers statement + presser window
+        sep = " + SEP/dot plot" if has_sep else ""
+        rows.append({
+            "title": f"[Markets] FOMC rate decision{sep}",
+            "start": _iso_with_offset(start_dt),
+            "end": _iso_with_offset(end_dt),
+            "all_day": False,
+            "notes": (
+                "Rate decision typically 2:00 PM ET; Chair press conference "
+                "usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar."
+            ),
+            "kind": "fed",
+            "impact": "High",
+        })
+
+    rows.sort(key=lambda ev: ev["start"])
+    return rows
+
+
 def fetch_earnings_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD,
                                  tickers: list[str] | None = None) -> list[dict]:
     """Upcoming earnings dates for the watchlist."""
@@ -152,8 +219,20 @@ def fetch_earnings_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD,
 
 
 def fetch_financial_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD) -> list[dict]:
-    """Merge macro + earnings, sorted by start time."""
-    events = (fetch_econ_announcements(days_ahead)
-              + fetch_earnings_announcements(days_ahead))
-    events.sort(key=lambda ev: ev["start"])
-    return events
+    """Merge near-term macro + earnings + year-ahead FOMC, sorted by start."""
+    events = (
+        fetch_econ_announcements(min(days_ahead, 14))  # free macro feed ≈ this week
+        + fetch_earnings_announcements(days_ahead)
+        + fetch_fomc_announcements(max(days_ahead, 400))
+    )
+    # Dedupe by title+start day in case feeds overlap.
+    seen: set[tuple[str, str]] = set()
+    unique = []
+    for ev in events:
+        key = (ev["title"], ev["start"][:10])
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(ev)
+    unique.sort(key=lambda ev: ev["start"])
+    return unique
