@@ -1,0 +1,40 @@
+name: Markets Google Calendar feed
+
+# Publishes markets.ics for Google Calendar → Notion Calendar (Gmail).
+on:
+  schedule:
+    # Same cadence as planner sync: 7:30 AM + 5:00 PM ET.
+    - cron: "30 11 * * *"
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Build ICS locally in the job without publishing"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  publish-feed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Publish markets.ics
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          WATCHLIST: ${{ vars.WATCHLIST }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python markets_ics.py

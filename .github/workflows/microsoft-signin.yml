@@ -1,0 +1,24 @@
+name: Microsoft sign-in (run once)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  device-login:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Device code sign-in
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+          MS_CLIENT_ID: ${{ secrets.MS_CLIENT_ID }}
+        run: python -u get_ms_token.py

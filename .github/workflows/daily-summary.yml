@@ -1,0 +1,46 @@
+name: Daily market summary
+
+on:
+  schedule:
+    # 11:30 UTC = 7:30 AM ET during daylight saving time (Mar-Nov).
+    # GitHub cron is always UTC, so this drifts to 6:30 AM ET in winter --
+    # bump to "30 12 * * 1-5" in November if you care.
+    - cron: "30 11 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the summary instead of sending it to Telegram"
+        type: boolean
+        default: false
+
+# `models: read` lets the built-in GITHUB_TOKEN call GitHub Models for free.
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  send-summary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pipeline
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          WATCHLIST: ${{ vars.WATCHLIST }}
+          LLM_MODEL: ${{ vars.LLM_MODEL }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+        run: python market_summary.py

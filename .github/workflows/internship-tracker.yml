@@ -1,0 +1,58 @@
+name: Internship tracker
+
+on:
+  schedule:
+    # Every day at 8:00 AM ET (12:00 UTC in summer; bump to 13 in winter if needed).
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print matches instead of writing to Notion/Telegram"
+        type: boolean
+        default: false
+      sample_data:
+        description: "Use built-in sample recruiting emails (no Microsoft needed)"
+        type: boolean
+        default: false
+      force_notify:
+        description: "Send Telegram even if Notion already has these rows"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  track-internships:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run internship tracker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NETWORKING_TELEGRAM_BOT_TOKEN: ${{ secrets.NETWORKING_TELEGRAM_BOT_TOKEN }}
+          NETWORKING_TELEGRAM_CHAT_ID: ${{ secrets.NETWORKING_TELEGRAM_CHAT_ID }}
+          NETWORKING_BOT_NAME: ${{ vars.NETWORKING_BOT_NAME }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PARENT_PAGE_ID: ${{ secrets.NOTION_PARENT_PAGE_ID }}
+          MS_REFRESH_TOKEN: ${{ secrets.MS_REFRESH_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}
+          INTERNSHIP_LOCATIONS: ${{ vars.INTERNSHIP_LOCATIONS }}
+          INTERNSHIP_DIVISIONS: ${{ vars.INTERNSHIP_DIVISIONS }}
+          INTERNSHIP_CLASS_YEARS: ${{ vars.INTERNSHIP_CLASS_YEARS }}
+          SKIP_MICROSOFT: ${{ vars.SKIP_MICROSOFT }}
+          DRY_RUN: ${{ inputs.dry_run && '1' || '' }}
+          SAMPLE_DATA: ${{ inputs.sample_data && '1' || '' }}
+          FORCE_NOTIFY: ${{ inputs.force_notify && '1' || '' }}
+        run: python internship_tracker.py
