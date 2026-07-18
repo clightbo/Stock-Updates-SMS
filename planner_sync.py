@@ -96,59 +96,129 @@ def fetch_calendar_week(token: str) -> list[dict]:
     return events
 
 
+def _wall_time(value: str) -> str:
+    """Strip timezone offset for Microsoft Graph local dateTime fields.
+
+    Graph wants 'YYYY-MM-DDTHH:MM:SS' + a separate timeZone, not an offset
+    suffix like '-04:00' (those can land on the wrong calendar hour).
+    """
+    text = (value or "").strip()
+    if not text:
+        return text
+    # Keep only the YYYY-MM-DDTHH:MM[:SS] prefix.
+    match = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})(?::\d{2})?", text)
+    if not match:
+        return text[:19]
+    base = match.group(1)
+    return base if len(base) == 16 else base
+
+
 def existing_market_slots(calendar_events: list[dict]) -> set[tuple[str, str]]:
     """Subjects + start times already on the Outlook calendar."""
     slots = set()
     for ev in calendar_events:
         subject = ev.get("subject", "")
         if subject.startswith(MARKETS_PREFIX):
-            slots.add((subject, ev["start"][:16]))
+            slots.add((subject, _wall_time(ev["start"])[:16]))
     return slots
+
+
+def fetch_outlook_market_window(token: str, days_ahead: int) -> list[dict]:
+    """Read the default Outlook calendar far enough to dedupe market events."""
+    now = datetime.now(timezone.utc)
+    data = graph_get(
+        token,
+        "https://graph.microsoft.com/v1.0/me/calendar/calendarView",
+        {
+            "startDateTime": now.isoformat(),
+            "endDateTime": (now + timedelta(days=days_ahead)).isoformat(),
+            "$select": "subject,start,end,isAllDay",
+            "$orderby": "start/dateTime",
+            "$top": 100,
+        },
+    )
+    events = []
+    for item in data.get("value", []):
+        events.append({
+            "subject": item.get("subject", "(no title)"),
+            "start": item["start"]["dateTime"][:16],
+            "end": item["end"]["dateTime"][:16],
+            "all_day": item.get("isAllDay", False),
+        })
+    return events
 
 
 def sync_financial_to_outlook(token: str, financial_events: list[dict],
                               calendar_events: list[dict],
                               dry_run: bool) -> int:
-    """Create Outlook events for macro releases and earnings."""
-    existing = existing_market_slots(calendar_events)
+    """Create events on the user's default (main) Outlook calendar."""
+    # Prefer a dedicated longer window so 14-day earnings aren't missed
+    # when the planner only loaded 7 days of personal events.
+    try:
+        outlook_window = fetch_outlook_market_window(token, MARKETS_DAYS_AHEAD)
+    except requests.HTTPError:
+        outlook_window = calendar_events
+    existing = existing_market_slots(outlook_window)
     created = 0
+    skipped = 0
     for ev in financial_events:
-        slot = (ev["title"], ev["start"][:16])
+        start_local = _wall_time(ev["start"])
+        end_local = _wall_time(ev.get("end") or ev["start"])
+        slot = (ev["title"], start_local[:16])
         if slot in existing:
+            skipped += 1
             continue
+        # showAs free = doesn't block your day; still shows on main calendar.
         payload = {
             "subject": ev["title"],
             "body": {
                 "contentType": "text",
-                "content": ev.get("notes", ""),
+                "content": (
+                    f"{ev.get('notes', '')}\n\n"
+                    "Auto-added by Stock-Updates-SMS markets sync."
+                ).strip(),
             },
             "start": {
-                "dateTime": ev["start"],
+                "dateTime": start_local + ":00",
                 "timeZone": TIMEZONE,
             },
             "end": {
-                "dateTime": ev["end"],
+                "dateTime": end_local + ":00",
                 "timeZone": TIMEZONE,
             },
+            "location": {"displayName": "Markets"},
+            "categories": ["Markets"],
+            "showAs": "free",
             "isReminderOn": True,
             "reminderMinutesBeforeStart": 30,
         }
         if dry_run:
-            print(f"DRY_RUN: would add Outlook event {ev['title']} @ {ev['start']}")
+            print(f"DRY_RUN: would add Outlook (main) {ev['title']} @ {start_local}")
             created += 1
             continue
         try:
-            graph_post(token, "https://graph.microsoft.com/v1.0/me/events", payload)
-            print(f"Added Outlook event {ev['title']}")
+            # /me/calendar/events = default/main calendar only.
+            graph_post(
+                token,
+                "https://graph.microsoft.com/v1.0/me/calendar/events",
+                payload,
+            )
+            print(f"Added Outlook (main) {ev['title']} @ {start_local} ET")
             created += 1
+            existing.add(slot)
         except requests.HTTPError as exc:
-            if exc.response is not None and exc.response.status_code == 403:
+            status = exc.response.status_code if exc.response is not None else "?"
+            detail = ""
+            if exc.response is not None:
+                detail = (exc.response.text or "")[:200]
+            if status == 403:
                 print("warning: cannot write to Outlook calendar (need "
                       "Calendars.ReadWrite). Re-run the 'Microsoft sign-in' "
                       "workflow to refresh permissions.", file=sys.stderr)
                 return created
-            print(f"warning: failed to add Outlook event {ev['title']}: {exc}",
-                  file=sys.stderr)
+            print(f"warning: failed to add Outlook event {ev['title']} "
+                  f"({status}): {detail or exc}", file=sys.stderr)
+    print(f"Outlook main calendar: {created} added, {skipped} already there.")
     return created
 
 

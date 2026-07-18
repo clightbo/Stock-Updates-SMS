@@ -175,9 +175,19 @@ On the first run the bot creates an **"AI Planner"** database under that page wi
 
 Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry run* to see what would be added without writing anything, or run it for real and watch the rows appear in Notion. After that it runs automatically twice a day.
 
-**Calendar write permission:** market events can be created in Outlook with subjects like `[Markets] CPI`. If you signed in to Microsoft before this feature existed, re-run **Microsoft sign-in (run once)** so the token includes calendar write access.
+**Main calendar (Outlook):** market events are written to your **default Outlook calendar** as `[Markets] …` (free/busy = free, 30‑min reminder, category Markets). That is the calendar Notion Calendar / phone calendar shows if Outlook is connected.
 
-**School / `.edu` accounts:** many universities block third-party Microsoft sign-in. Use a **personal** Microsoft account (Outlook.com/Hotmail) during sign-in — especially one that already has your school calendar shared to it. If Outlook writes still fail, add a repository variable `SKIP_OUTLOOK_CALENDAR` = `1`; market events will land in **Notion only** (use a calendar view on the Due column). If Microsoft sign-in is completely blocked, set `SKIP_MICROSOFT` = `1` to sync financial announcements to Notion without email/calendar.
+To see them in the **Notion Calendar app**:
+1. Open [calendar.notion.so](https://calendar.notion.so)
+2. Settings → add / connect the **same Microsoft/Outlook account** you use for Microsoft sign-in
+3. Make sure that calendar is toggled **visible**
+4. Look for `[Markets] MSFT earnings`, etc. on Jul 29–30 (and other Fed/macro times)
+
+Or in Outlook on the web: [outlook.live.com/calendar](https://outlook.live.com/calendar) → search `Markets`.
+
+**Calendar write permission:** if writes fail, re-run **Microsoft sign-in (run once)** so the token includes `Calendars.ReadWrite`.
+
+**School / `.edu` accounts:** many universities block third-party Microsoft sign-in. Use a **personal** Microsoft account (Outlook.com/Hotmail) during sign-in — especially one that already has your school calendar shared to it. If Outlook writes still fail, add a repository variable `SKIP_OUTLOOK_CALENDAR` = `1`; market events will land in **Notion only** (Markets Calendar database). If Microsoft sign-in is completely blocked, set `SKIP_MICROSOFT` = `1` to sync financial announcements to Notion without email/calendar.
 
 ### Google Calendar → Notion Calendar (Gmail)
 
