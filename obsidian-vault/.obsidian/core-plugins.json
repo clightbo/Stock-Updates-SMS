@@ -1,0 +1,18 @@
+{
+  "graph": true,
+  "outgoing-link": true,
+  "file-explorer": true,
+  "global-search": true,
+  "backlink": true,
+  "tag-pane": true,
+  "page-preview": true,
+  "daily-notes": true,
+  "templates": true,
+  "note-composer": true,
+  "command-palette": true,
+  "editor-status": true,
+  "markdown-importer": false,
+  "word-count": true,
+  "outline": true,
+  "file-recovery": true
+}

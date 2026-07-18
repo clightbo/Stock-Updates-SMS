@@ -5,6 +5,7 @@ Personal automation pipelines that run free in the cloud on GitHub Actions and m
 1. **Daily market summary** — watchlist prices + AI-condensed macro news, weekday mornings ([setup](#market-summary))
 2. **Daily AI agenda** — an AI chief of staff that reads your Outlook inbox and calendar and messages you a morning plan ([setup](#daily-ai-agenda))
 3. **Notion planner sync** — an AI scheduling bot that turns your email and calendar into an organized planner board in Notion ([setup](#notion-planner))
+4. **Obsidian finance vault** — markdown vault (`obsidian-vault/`) with Fed/earnings calendar + weekly interview pitch ([setup](#obsidian-vault))
 4. **Internship tracker** — watches finance job boards and discovery programs for Dallas / NYC **S&T, markets rotations, AM, equity research, and IB** ([setup](#internship-tracker))
 
 <a name="market-summary"></a>
@@ -207,6 +208,31 @@ Jump to **Jul 29–30** for MSFT / AAPL earnings after the feed is added (Google
 - **You stay in control:** the bot only adds rows. It never edits or deletes anything, so your statuses, notes, and re-ordering are safe.
 - **Privacy:** like the agenda, email subjects/previews go to GitHub Models for extraction and are never printed in workflow logs.
 - **Schedule:** edit the two `cron` lines in `.github/workflows/planner-sync.yml` (times are UTC).
+
+<a name="obsidian-vault"></a>
+
+## Obsidian finance vault
+
+Markdown vault at `obsidian-vault/` for studying markets and interview pitches offline in [Obsidian](https://obsidian.md).
+
+### Open it
+
+1. Install Obsidian
+2. **Open folder as vault** → pick the `obsidian-vault` folder from this repo (clone the repo first if needed)
+3. Start at `Home.md`
+
+### What’s inside
+
+| Note | Contents |
+|---|---|
+| `Markets/Calendar.md` | Fed / macro / earnings table (same source as Google ICS) |
+| `Interview/This Week.md` | Weekly interview pitch to rehearse |
+| `Markets/Watchlist.md` | Your tickers |
+| `Daily/Latest Briefing.md` | Placeholder for morning briefing notes |
+
+### Keep it updated
+
+**Actions → Obsidian vault sync → Run workflow** (also runs on a weekday schedule). It regenerates the calendar + interview notes and commits them back to the repo. Pull in Obsidian / Git to refresh.
 
 <a name="internship-tracker"></a>
 
