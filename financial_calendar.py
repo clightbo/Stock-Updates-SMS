@@ -122,7 +122,7 @@ def fetch_econ_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD) -> list[dict]
     return rows
 
 
-def fetch_fomc_announcements(days_ahead: int = 400) -> list[dict]:
+def fetch_fomc_announcements(days_ahead: int = 550) -> list[dict]:
     """FOMC rate-decision days for the rest of this year (+ next), timed 2:00 PM ET.
 
     Macro RSS only covers ~this week, so FOMC is loaded from a year calendar
@@ -223,7 +223,7 @@ def fetch_financial_announcements(days_ahead: int = DEFAULT_DAYS_AHEAD) -> list[
     events = (
         fetch_econ_announcements(min(days_ahead, 14))  # free macro feed ≈ this week
         + fetch_earnings_announcements(days_ahead)
-        + fetch_fomc_announcements(max(days_ahead, 400))
+        + fetch_fomc_announcements(max(days_ahead, 550))
     )
     # Dedupe by title+start day in case feeds overlap.
     seen: set[tuple[str, str]] = set()
