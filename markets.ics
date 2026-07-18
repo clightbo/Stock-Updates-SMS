@@ -24,7 +24,7 @@ END:STANDARD
 END:VTIMEZONE
 BEGIN:VEVENT
 UID:markets-4027d25dfdb10bb4@stock-updates-sms
-DTSTAMP:20260718T121107Z
+DTSTAMP:20260718T154753Z
 DTSTART;TZID=America/New_York:20260729T080000
 DTEND;TZID=America/New_York:20260729T090000
 SUMMARY:[Markets] MSFT earnings
@@ -34,12 +34,167 @@ STATUS:CONFIRMED
 TRANSP:TRANSPARENT
 END:VEVENT
 BEGIN:VEVENT
+UID:markets-ed5dbbb351140863@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20260729T140000
+DTEND;TZID=America/New_York:20260729T150000
+SUMMARY:[Markets] FOMC rate decision
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
 UID:markets-1aec0bed81ab1a20@stock-updates-sms
-DTSTAMP:20260718T121107Z
+DTSTAMP:20260718T154753Z
 DTSTART;TZID=America/New_York:20260730T080000
 DTEND;TZID=America/New_York:20260730T090000
 SUMMARY:[Markets] AAPL earnings
 DESCRIPTION:Impact: High. Earnings report\; est EPS 1.89396
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-5ff61961338f98c6@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20260826T080000
+DTEND;TZID=America/New_York:20260826T090000
+SUMMARY:[Markets] NVDA earnings
+DESCRIPTION:Impact: High. Earnings report\; est EPS 2.09439
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-54dd003913126ae4@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20260916T140000
+DTEND;TZID=America/New_York:20260916T150000
+SUMMARY:[Markets] FOMC rate decision + SEP/dot plot
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-25312aba093172f0@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20261028T140000
+DTEND;TZID=America/New_York:20261028T150000
+SUMMARY:[Markets] FOMC rate decision
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-1202eadadf1bb81b@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20261209T130000
+DTEND;TZID=America/New_York:20261209T140000
+SUMMARY:[Markets] FOMC rate decision + SEP/dot plot
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-55af4e67eacabf98@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20270127T130000
+DTEND;TZID=America/New_York:20270127T140000
+SUMMARY:[Markets] FOMC rate decision
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-c8810f610bc4bf6a@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20270317T140000
+DTEND;TZID=America/New_York:20270317T150000
+SUMMARY:[Markets] FOMC rate decision + SEP/dot plot
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-afcb890cf43ccc46@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20270428T140000
+DTEND;TZID=America/New_York:20270428T150000
+SUMMARY:[Markets] FOMC rate decision
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-7d7a1f65b4a6c3f0@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20270616T140000
+DTEND;TZID=America/New_York:20270616T150000
+SUMMARY:[Markets] FOMC rate decision + SEP/dot plot
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-7f0c9bcbacac0b71@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20270728T140000
+DTEND;TZID=America/New_York:20270728T150000
+SUMMARY:[Markets] FOMC rate decision
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-4aa34b0fa2a3f4b6@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20270915T140000
+DTEND;TZID=America/New_York:20270915T150000
+SUMMARY:[Markets] FOMC rate decision + SEP/dot plot
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-eca676a85b4ace3e@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20271027T140000
+DTEND;TZID=America/New_York:20271027T150000
+SUMMARY:[Markets] FOMC rate decision
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
+LOCATION:Markets
+STATUS:CONFIRMED
+TRANSP:TRANSPARENT
+END:VEVENT
+BEGIN:VEVENT
+UID:markets-da90b4ef8e7fe3ca@stock-updates-sms
+DTSTAMP:20260718T154753Z
+DTSTART;TZID=America/New_York:20271208T130000
+DTEND;TZID=America/New_York:20271208T140000
+SUMMARY:[Markets] FOMC rate decision + SEP/dot plot
+DESCRIPTION:Impact: High. Rate decision typically 2:00 PM ET\; Chair press 
+ conference usually ~2:30 PM ET. Source: Federal Reserve FOMC calendar.
 LOCATION:Markets
 STATUS:CONFIRMED
 TRANSP:TRANSPARENT
