@@ -179,6 +179,24 @@ Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry r
 
 **School / `.edu` accounts:** many universities block third-party Microsoft sign-in. Use a **personal** Microsoft account (Outlook.com/Hotmail) during sign-in — especially one that already has your school calendar shared to it. If Outlook writes still fail, add a repository variable `SKIP_OUTLOOK_CALENDAR` = `1`; market events will land in **Notion only** (use a calendar view on the Due column). If Microsoft sign-in is completely blocked, set `SKIP_MICROSOFT` = `1` to sync financial announcements to Notion without email/calendar.
 
+### Google Calendar → Notion Calendar (Gmail)
+
+If Notion Calendar is connected to **Gmail** (e.g. `lightbourncal@gmail.com`), Outlook events will **not** show there. Use the public ICS feed instead:
+
+1. Run **Actions → Markets Google Calendar feed → Run workflow** (or wait for the twice-daily schedule).
+2. In **Google Calendar** (signed in as `lightbourncal@gmail.com`):
+   - Settings → **Add calendar** → **From URL**
+   - Paste:
+
+   ```
+   https://raw.githubusercontent.com/clightbo/Stock-Updates-SMS/calendar-feed/markets.ics
+   ```
+
+3. Make sure that calendar is **checked / visible** in Google Calendar.
+4. Notion Calendar (linked to that Gmail) will show **Markets (Fed / Macro / Earnings)** events automatically.
+
+Jump to **Jul 29–30** for MSFT / AAPL earnings after the feed is added (Google can take a few minutes to refresh).
+
 ### Notes
 
 - **You stay in control:** the bot only adds rows. It never edits or deletes anything, so your statuses, notes, and re-ordering are safe.
