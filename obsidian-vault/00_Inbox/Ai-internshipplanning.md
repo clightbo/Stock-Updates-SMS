@@ -32,6 +32,7 @@ Here's the timeline and goals piece, pulled together from what's on file:
 
 - Executing outreach to Favian and Cindy Blackstone — flagged as high-priority but not yet done
 - Deciding what to do if AD Fellowship comes off the waitlist while Corient/JPM AHL are still pending
+- **BLK Capital — Wall Street Club 2026–2027** — 15-week IB/PE program for rising sophomores; flyer deadline was **June 1, 2026** (now past). Send late-interest email to `wallstreetclub@blkcapitalmanagement.org` or pivot to Onuoha Fellowship / general BLK membership. Details + draft: [[01_Projects/Wall Street Club/Overview]]
 
 Want me to sketch out a week-by-week plan from now through December to keep this on track?
 
@@ -42,5 +43,6 @@ Want me to sketch out a week-by-week plan from now through December to keep this
 - [[AI-Collegetransferoppurtinitys]]
 - [[01_Projects/Interview Prep/This Week]]
 - [[01_Projects/Project Destined/Overview]]
+- [[01_Projects/Wall Street Club/Overview]]
 - [[01_Projects/Trading Bot/Overview]]
 - [[Home]]

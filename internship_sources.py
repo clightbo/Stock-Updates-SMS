@@ -502,8 +502,20 @@ UPCOMING_PROGRAMS: tuple[UpcomingProgram, ...] = (
         diversity="Diversity",
         networking_tip="You're already in SEO EDGE — ask your cohort about bank timelines.",
     ),
+    UpcomingProgram(
+        firm="BLK Capital Management",
+        title="Wall Street Club (IB / PE)",
+        division="IB",
+        url="https://blkcapitalmanagement.org/",
+        opens_month=4,
+        diversity="Black",
+        networking_tip=(
+            "15-week rising-sophomore IB/PE program. Apply by emailing resume to "
+            "wallstreetclub@blkcapitalmanagement.org (2026–27 deadline was June 1). "
+            "Also watch Onuoha Fellowship and general BLK membership apps."
+        ),
+    ),
 )
-
 # Bulge bracket + elite boutiques + large AM — sophomore / discovery program pages.
 CURATED_PROGRAMS = (
     # --- Bulge bracket ---
@@ -706,8 +718,14 @@ CURATED_PROGRAMS = (
         "url": "https://www.projectdestined.com/",
         "typical_open": "Spring-Summer",
     },
+    {
+        "firm": "BLK Capital Management",
+        "title": "Wall Street Club / Onuoha Fellowship",
+        "division": "IB",
+        "url": "https://blkcapitalmanagement.org/",
+        "typical_open": "Spring (WSC ~April–June)",
+    },
 )
-
 APPLY_OPEN_SIGNALS = (
     "apply now", "applications are open", "application is open",
     "apply today", "submit your application", "start application",
@@ -726,6 +744,7 @@ EMAIL_RECRUITING_FROM = (
     "pjtpartners", "barclays", "ubs.com", "blackrock", "pimco", "vanguard",
     "deutschebank", "centerview", "pwpartners", "guggenheim", "greenhill",
     "rothschild", "jefferies", "houlihanlokey", "seo-usa", "projectdestined",
+    "blkcapitalmanagement", "blk capital",
     "campus", "recruiting", "talent", "university", "college",
 )
 EMAIL_RECRUITING_SUBJECT = (

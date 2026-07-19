@@ -42,4 +42,5 @@ Here's a rundown of what we covered:
 - [[01_Projects/Interview Prep/This Week]]
 - [[01_Projects/Trading Bot/Overview]]
 - [[01_Projects/Project Destined/Overview]]
+- [[01_Projects/Wall Street Club/Overview]]
 - [[Home]]
