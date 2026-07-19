@@ -1,3 +1,12 @@
+---
+tags:
+  - inbox
+  - internship
+  - recruiting
+---
+
+# AI Summary — Internship Planning
+
 Here's the timeline and goals piece, pulled together from what's on file:
 
 **End goal**
@@ -25,3 +34,13 @@ Here's the timeline and goals piece, pulled together from what's on file:
 - Deciding what to do if AD Fellowship comes off the waitlist while Corient/JPM AHL are still pending
 
 Want me to sketch out a week-by-week plan from now through December to keep this on track?
+
+## Related
+
+- [[Ai-resume]]
+- [[Ai-carrerpathways]]
+- [[AI-Collegetransferoppurtinitys]]
+- [[01_Projects/Interview Prep/This Week]]
+- [[01_Projects/Project Destined/Overview]]
+- [[01_Projects/Trading Bot/Overview]]
+- [[Home]]

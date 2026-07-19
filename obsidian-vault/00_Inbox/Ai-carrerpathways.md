@@ -1,3 +1,12 @@
+---
+tags:
+  - inbox
+  - career
+  - sandt
+---
+
+# AI Summary — Career Pathways
+
 Here's a summary of everything we've worked through:
 
 ### The Goal
@@ -21,3 +30,12 @@ Build toward a **Sales & Trading seat** (trading side specifically, not client-f
 ### Immediate Priorities (from the to-do list)
 
 Send the Cindy Blackstone email, lock in the Favian coffee chat, follow up on the AD Fellowship waitlist, finish the CBRE hackathon deliverable, and build out the mean reversion/sentiment bots, REIT pitch, WSP modeling course, and Akuna Options 101 — all aimed at having a fully real, no-caveats resume ready well before your actual junior-year recruiting cycle arrives.
+
+## Related
+
+- [[Ai-resume]]
+- [[Ai-internshipplanning]]
+- [[AI-Collegetransferoppurtinitys]]
+- [[01_Projects/Interview Prep/This Week]]
+- [[01_Projects/Trading Bot/Overview]]
+- [[Home]]

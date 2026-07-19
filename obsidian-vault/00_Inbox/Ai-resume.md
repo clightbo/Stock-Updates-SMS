@@ -1,13 +1,14 @@
+---
+tags:
+  - inbox
+  - resume
+  - recruiting
+---
+
+# AI Summary — Resume
+
 Here's a rundown of what we covered:
-## Related
 
-- [[Ai-resume]]
-
-- [[Ai-carrerpathways]]
-
-- [[01_Projects/Interview Prep/This Week]]
-
-- [[Home]]
 **Resume review**
 
 - Reviewed your resume, initially flagged the CBRE/Project Destined dates as overlapping — you corrected me, they're sequential (Project Destined ends July, CBRE begins July), no actual issue there.
@@ -32,3 +33,13 @@ Here's a rundown of what we covered:
 - Algo trading bot project: add it to LinkedIn now as a description-only project (matching resume language), no GitHub link yet since the code isn't pushed there — clean it up and add the link once it's presentable.
 
 **Still open:** Cindy's email draft, GitHub cleanup for the bot, AD Fellowship waitlist follow-up (July 20 deadline), and the docx cleanup of your resume if you still want that produced.
+
+## Related
+
+- [[Ai-carrerpathways]]
+- [[Ai-internshipplanning]]
+- [[AI-Collegetransferoppurtinitys]]
+- [[01_Projects/Interview Prep/This Week]]
+- [[01_Projects/Trading Bot/Overview]]
+- [[01_Projects/Project Destined/Overview]]
+- [[Home]]

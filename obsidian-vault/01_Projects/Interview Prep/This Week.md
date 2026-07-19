@@ -24,4 +24,8 @@ MACRO HEDGE: LONG TLT / duration if Fed pivot (or short if sticky inflation): 10
 - [[03_Finance_Data/Markets/Calendar]]
 - [[03_Finance_Data/Markets/Watchlist]]
 - [[00_Inbox/Latest Briefing]]
+- [[00_Inbox/Ai-resume]]
+- [[00_Inbox/Ai-carrerpathways]]
+- [[00_Inbox/Ai-internshipplanning]]
+- [[Home]]
 

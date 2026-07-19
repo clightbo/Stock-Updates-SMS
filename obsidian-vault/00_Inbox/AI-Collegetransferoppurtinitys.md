@@ -1,4 +1,13 @@
-**stion:** Which colleges should I apply to transfer into (originally: besides A&M), and how do I navigate the calculus prerequisite and cost constraints along the way?
+---
+tags:
+  - inbox
+  - college
+  - transfer
+---
+
+# AI Summary — College Transfer Opportunities
+
+**Question:** Which colleges should I apply to transfer into (originally: besides A&M), and how do I navigate the calculus prerequisite and cost constraints along the way?
 
 **Answer:**
 
@@ -19,3 +28,10 @@
 2. Track how Summer 2027 S&T recruiting plays out at TTU before treating any transfer as a must — those outcomes land before you'd even transfer.
 3. Submit UNC first (~Feb 15, 2027 deadline), then Mays/UVA-tier deadlines (March 1), then SMU/Kelley/TCU (June 1).
 4. Treat Kelley and UNC as your two intentional long shots; treat Mays, SMU, UT Austin Econ, TCU, and UTD as your realistic, most likely outcomes.
+
+## Related
+
+- [[Ai-carrerpathways]]
+- [[Ai-internshipplanning]]
+- [[Ai-resume]]
+- [[Home]]

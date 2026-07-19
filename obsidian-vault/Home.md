@@ -16,6 +16,13 @@ Personal finance / markets / interview vault — structured for Obsidian + Curso
 - [[03_Finance_Data/Markets/Watchlist|Watchlist]] — tickers you track
 - [[SETUP|Setup Guide]] — GitHub sync, plugins, Cursor linking
 
+## Career planning (AI summaries)
+
+- [[00_Inbox/Ai-resume|Resume]]
+- [[00_Inbox/Ai-carrerpathways|Career pathways]]
+- [[00_Inbox/Ai-internshipplanning|Internship planning]]
+- [[00_Inbox/AI-Collegetransferoppurtinitys|College transfer]]
+
 ## Vault map
 
 | Folder | Purpose |
