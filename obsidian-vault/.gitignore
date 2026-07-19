@@ -1,0 +1,5 @@
+# Local Obsidian state — keep shared config, skip per-device workspace
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.trash/

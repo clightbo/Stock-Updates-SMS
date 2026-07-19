@@ -1,0 +1,43 @@
+name: Obsidian vault sync
+
+on:
+  schedule:
+    # After morning markets cadence (12:00 UTC ≈ 8 AM ET).
+    - cron: "0 12 * * 1-5"
+    - cron: "15 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync-vault:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync markdown into obsidian-vault/
+        env:
+          WATCHLIST: ${{ vars.WATCHLIST }}
+        run: python obsidian_sync.py
+
+      - name: Commit vault updates
+        run: |
+          git config user.name "obsidian-vault-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add obsidian-vault
+          if git diff --staged --quiet; then
+            echo "No vault changes."
+          else
+            git commit -m "Update Obsidian finance vault"
+            git push
+          fi
