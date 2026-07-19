@@ -3,7 +3,7 @@ tags:
   - inbox
   - meta
 ---
-hello from my mac
+hello from my mac$
 # Inbox
 
 Quick capture only. Process weekly:
