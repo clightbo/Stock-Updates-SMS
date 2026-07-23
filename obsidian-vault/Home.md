@@ -37,6 +37,7 @@ Personal finance / markets / interview vault — structured for Obsidian + Curso
 ## Active projects
 
 - [[01_Projects/Project Destined/Overview|Project Destined]]
+- [[01_Projects/Wall Street Club/Overview|Wall Street Club (BLK Capital)]]
 - [[01_Projects/Trading Bot/Overview|Trading Bot]]
 - [[01_Projects/Interview Prep/This Week|Interview Prep]]
 

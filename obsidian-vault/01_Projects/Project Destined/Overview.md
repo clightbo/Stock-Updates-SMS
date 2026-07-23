@@ -26,3 +26,4 @@ Active project workspace. Drop research notes, meeting write-ups, and deliverabl
 - [[01_Projects/Interview Prep/This Week|Interview Prep]]
 - [[00_Inbox/Ai-internshipplanning]]
 - [[00_Inbox/Ai-resume]]
+- [[01_Projects/Wall Street Club/Overview]]
