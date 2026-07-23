@@ -44,7 +44,7 @@ def write_calendar() -> int:
         "",
         "# Markets Calendar",
         "",
-        f"_Updated {_now_stamp()}. Auto-generated from Stock-Updates-SMS._",
+        f"_Updated {_now_stamp()}. Auto-generated from personal-automation-hub._",
         "",
         "| When (ET) | Impact | Type | Event |",
         "|---|---|---|---|",
