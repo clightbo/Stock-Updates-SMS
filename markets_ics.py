@@ -65,7 +65,7 @@ def _ics_local(dt: datetime) -> str:
 
 def _uid(title: str, start: str) -> str:
     digest = hashlib.sha1(f"{title}|{start}".encode()).hexdigest()[:16]
-    return f"markets-{digest}@stock-updates-sms"
+    return f"markets-{digest}@personal-automation-hub"
 
 
 def build_ics(events: list[dict]) -> str:
@@ -73,7 +73,7 @@ def build_ics(events: list[dict]) -> str:
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
-        "PRODID:-//Stock-Updates-SMS//Markets//EN",
+        "PRODID:-//personal-automation-hub//Markets//EN",
         "CALSCALE:GREGORIAN",
         "METHOD:PUBLISH",
         f"X-WR-CALNAME:{_escape(CAL_NAME)}",

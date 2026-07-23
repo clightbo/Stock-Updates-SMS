@@ -1,4 +1,4 @@
-# Stock-Updates-SMS
+# personal-automation-hub
 
 Personal automation pipelines that run free in the cloud on GitHub Actions and message your phone via Telegram:
 
@@ -142,7 +142,7 @@ Then test it: **Actions → Daily AI agenda → Run workflow**. It runs daily at
 
 ## Notion planner sync
 
-Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. **Timed market events** auto-create in **Markets Calendar** / the Google ICS feed:
+Four times a day (7:30 AM, 12 PM, 3 PM, and 5 PM ET), an AI reads your Outlook inbox and calendar and keeps a planner database in Notion up to date — your "hub". Calendar events for the next week land as **Event** rows, and the AI extracts real to-dos from email (deadlines, meetings people proposed, things you committed to) as **Task / Deadline / Follow-up / Meeting to schedule** rows. **Timed market events** auto-create in **Markets Calendar** / the Google ICS feed:
 - **FOMC rate decisions** for the rest of 2026–2027 at **2:00 PM ET** (presser usually ~2:30)
 - **Watchlist earnings** ~90 days ahead (8:00 AM ET reminder on report day)
 - **CPI / jobs / other high-medium US macro** for about the **current week** (free weekly feed)
@@ -150,7 +150,7 @@ Twice a day (7:30 AM and 5:00 PM ET), an AI reads your Outlook inbox and calenda
 Newsletters and promo noise are skipped. Every row has a Status (Inbox → Planned → Done) so you can run your week from one board. Nothing is ever added twice — each row carries a hidden dedupe key.
 
 ```
-GitHub Actions (cron, 7:30 AM + 5:00 PM ET)
+GitHub Actions (cron, 7:30 AM, 12 PM, 3 PM, 5 PM ET)
         │
         ▼
 planner_sync.py
@@ -179,7 +179,7 @@ You already have the Microsoft sign-in, `GH_PAT`, and Telegram secrets from the 
 
 On the first run the bot creates an **"AI Planner"** database under that page with Name, Type, Status, Due, Source, From, and Notes columns. Later runs find it by title and only add what's new — you can move it, add views (a calendar view on the **Due** property works great), or add your own columns freely.
 
-Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry run* to see what would be added without writing anything, or run it for real and watch the rows appear in Notion. After that it runs automatically twice a day.
+Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry run* to see what would be added without writing anything, or run it for real and watch the rows appear in Notion. After that it runs automatically four times a day.
 
 **Calendar write permission:** market events can be created in Outlook with subjects like `[Markets] CPI`. If you signed in to Microsoft before this feature existed, re-run **Microsoft sign-in (run once)** so the token includes calendar write access.
 
@@ -189,13 +189,13 @@ Then test it: **Actions → Notion planner sync → Run workflow**. Check *dry r
 
 If Notion Calendar is connected to **Gmail** (e.g. `lightbourncal@gmail.com`), Outlook events will **not** show there. Use the public ICS feed instead:
 
-1. Run **Actions → Markets Google Calendar feed → Run workflow** (or wait for the twice-daily schedule).
+1. Run **Actions → Markets Google Calendar feed → Run workflow** (or wait for the four-times-daily schedule).
 2. In **Google Calendar** (signed in as `lightbourncal@gmail.com`):
    - Settings → **Add calendar** → **From URL**
    - Paste:
 
    ```
-   https://raw.githubusercontent.com/clightbo/Stock-Updates-SMS/calendar-feed/markets.ics
+   https://raw.githubusercontent.com/clightbo/personal-automation-hub/calendar-feed/markets.ics
    ```
 
 3. Make sure that calendar is **checked / visible** in Google Calendar.
@@ -207,7 +207,7 @@ Jump to **Jul 29–30** for MSFT / AAPL earnings after the feed is added (Google
 
 - **You stay in control:** the bot only adds rows. It never edits or deletes anything, so your statuses, notes, and re-ordering are safe.
 - **Privacy:** like the agenda, email subjects/previews go to GitHub Models for extraction and are never printed in workflow logs.
-- **Schedule:** edit the two `cron` lines in `.github/workflows/planner-sync.yml` (times are UTC).
+- **Schedule:** edit the `cron` lines in `.github/workflows/planner-sync.yml` (times are UTC).
 
 <a name="obsidian-vault"></a>
 

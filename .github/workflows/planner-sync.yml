@@ -2,9 +2,11 @@ name: Notion planner sync
 
 on:
   schedule:
-    # Twice a day: 11:30 UTC (7:30 AM ET) and 21:00 UTC (5:00 PM ET).
-    - cron: "30 11 * * *"
-    - cron: "0 21 * * *"
+    # Four times a day (UTC → ET during DST):
+    - cron: "30 11 * * *"   # 7:30 AM ET
+    - cron: "0 16 * * *"    # 12:00 PM ET
+    - cron: "0 19 * * *"    # 3:00 PM ET
+    - cron: "0 21 * * *"    # 5:00 PM ET
   workflow_dispatch:
     inputs:
       dry_run:

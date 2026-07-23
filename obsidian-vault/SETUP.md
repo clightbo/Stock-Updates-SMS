@@ -36,7 +36,7 @@ Your vault lives inside this private repo, so you do **not** need a separate `ob
 ### Option B — plain Git
 
 ```bash
-cd path/to/Stock-Updates-SMS
+cd path/to/personal-automation-hub
 git pull
 # edit notes in Obsidian…
 git add obsidian-vault
